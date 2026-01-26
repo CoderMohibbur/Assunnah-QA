@@ -1,0 +1,352 @@
+@extends('layouts.app')
+
+@section('title', 'প্রশ্নোত্তর')
+
+@section('content')
+    @php
+        use Carbon\Carbon;
+        use Illuminate\Support\Str;
+
+        $q = trim((string) ($q ?? request('q', '')));
+
+        $bn = fn($s) => strtr((string) $s, [
+            '0' => '০',
+            '1' => '১',
+            '2' => '২',
+            '3' => '৩',
+            '4' => '৪',
+            '5' => '৫',
+            '6' => '৬',
+            '7' => '৭',
+            '8' => '৮',
+            '9' => '৯',
+        ]);
+
+        $bnDateLabel = function ($dt) use ($bn) {
+            if (!$dt) {
+                return '—';
+            }
+            try {
+                $c = $dt instanceof \DateTimeInterface ? Carbon::instance($dt) : Carbon::parse($dt);
+                $c = $c->timezone(config('app.timezone'))->locale('bn');
+                return $bn($c->translatedFormat('d F, Y'));
+            } catch (\Throwable $e) {
+                try {
+                    $c = $dt instanceof \DateTimeInterface ? Carbon::instance($dt) : Carbon::parse($dt);
+                    return $bn($c->format('d-m-Y'));
+                } catch (\Throwable $e2) {
+                    return '—';
+                }
+            }
+        };
+    @endphp
+
+    <div x-data="qaHomeState()" x-init="init()">
+
+        {{-- Top Row: Slider + Featured Card --}}
+        <div class="grid grid-cols-12 gap-6">
+
+            {{-- Slider --}}
+            <div class="col-span-12 lg:col-span-8">
+                <div class="qa-card qa-card-hover p-0 overflow-hidden">
+                    <div class="bg-slate-900/5 p-4 border-b">
+                        <div class="font-bold text-slate-900">Featured প্রশ্ন</div>
+                        <div class="text-sm text-slate-600">সবচেয়ে গুরুত্বপূর্ণ/বেশি দেখা প্রশ্ন</div>
+                    </div>
+
+                    <div class="relative">
+                        <div class="swiper qa-swiper">
+                            <div class="swiper-wrapper">
+
+                                @forelse (($featured ?? collect()) as $f)
+                                    @php
+                                        $slug = $f->slug ?: 'q-' . $f->id;
+                                        $ans = $f->answer;
+                                        $answeredAt =
+                                            $ans?->answered_at ??
+                                            ($ans?->updated_at ?? ($f->published_at ?? $f->created_at));
+                                        $date = $bnDateLabel($answeredAt);
+
+                                        $sliderText = (string) ($ans?->answer_html ?? $f->body_html);
+                                        $excerpt = Str::limit(strip_tags($sliderText), 140);
+                                    @endphp
+
+                                    <div class="swiper-slide">
+                                        <div class="p-6 bg-[#0b4c7a] text-white min-h-[280px] flex items-center">
+                                            <div class="w-full">
+                                                <div class="text-center text-sm opacity-90 mb-4">
+                                                    প্রশ্ন: {{ $bn($f->id) }}
+                                                    @if (!is_null($f->view_count))
+                                                        <span class="opacity-80"> • দেখা: {{ $bn($f->view_count) }}</span>
+                                                    @endif
+                                                </div>
+
+                                                <h3 class="text-xl md:text-2xl font-bold leading-snug text-center">
+                                                    {{ $f->title }}
+                                                </h3>
+
+                                                <p class="mt-4 text-white/90 text-center max-w-2xl mx-auto">
+                                                    {{ $excerpt }}
+                                                </p>
+
+                                                <div class="mt-5 text-center text-xs text-white/80">{{ $date }}
+                                                </div>
+
+                                                <div class="mt-6 flex justify-center">
+                                                    <a href="{{ route('questions.show', ['slug' => $slug]) }}"
+                                                        class="qa-btn qa-btn-outline bg-white/10 border-white/30 text-white hover:bg-white/15">
+                                                        বিস্তারিত দেখুন
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="swiper-slide">
+                                        <div class="p-6 bg-[#0b4c7a] text-white min-h-[280px] flex items-center">
+                                            <div class="w-full text-center">
+                                                <div class="text-xl font-extrabold">এখনো কোনো Published প্রশ্নোত্তর নেই
+                                                </div>
+                                                <div class="mt-2 text-white/80 text-sm">প্রথম প্রশ্নটি আপনি করতে পারেন।
+                                                </div>
+                                                <div class="mt-6">
+                                                    <a href="{{ route('ask') }}"
+                                                        class="qa-btn qa-btn-outline bg-white/10 border-white/30 text-white hover:bg-white/15">
+                                                        প্রশ্ন করুন
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforelse
+
+                            </div>
+
+                            <div class="swiper-pagination"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            {{-- Featured Card --}}
+            <div class="col-span-12 lg:col-span-4">
+                <div class="qa-card qa-card-hover overflow-hidden p-0">
+                    <div class="h-40 bg-gradient-to-br from-slate-900 via-blue-700 to-cyan-400 relative">
+                        <div
+                            class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_30%,white,transparent_55%)]">
+                        </div>
+                        <div class="absolute bottom-4 left-4 right-4 text-white">
+                            <div class="text-xl font-extrabold leading-tight">
+                                এক নজরে<br>সকল প্রশ্নোত্তর
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-5">
+                        <p class="text-sm text-slate-600 leading-relaxed">
+                            আপনার প্রশ্ন খুঁজে পান সহজে। সার্চ করুন অথবা ক্যাটাগরি অনুযায়ী ব্রাউজ করুন।
+                        </p>
+
+                        <div class="mt-4 flex gap-2">
+                            <a href="{{ route('questions.index') }}" class="qa-btn qa-btn-primary flex-1">সকল প্রশ্ন</a>
+                            <a href="{{ route('answers.index') }}" class="qa-btn qa-btn-outline flex-1">প্রশ্নোত্তর</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Search Bar --}}
+        <div class="mt-6">
+            <div class="qa-card p-3">
+                <form method="GET" action="{{ route('home') }}" class="flex gap-3 items-center">
+                    <input class="qa-input flex-1" name="q" x-model="q" placeholder="প্রশ্নোত্তর খুঁজুন..."
+                        autocomplete="off" />
+
+                    <button type="button" x-show="q?.length" x-cloak @click="clearSearch()"
+                        class="qa-btn qa-btn-outline px-4">✕</button>
+
+                    <button type="submit" class="qa-btn qa-btn-primary px-5">🔍</button>
+                </form>
+            </div>
+        </div>
+
+        {{-- Questions Grid --}}
+        <div class="mt-6 qa-card">
+            <div class="flex items-center justify-between gap-3">
+                <div class="font-extrabold text-slate-900 text-lg">
+                    প্রশ্নোত্তর
+                    @if ($q !== '')
+                        <span class="text-sm text-slate-500 font-semibold">— “{{ $q }}”</span>
+                    @endif
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" @click="set('grid')"
+                        :class="view === 'grid' ? 'qa-btn qa-btn-primary px-3' : 'qa-btn qa-btn-outline px-3'">⬛⬛</button>
+
+                    <button type="button" @click="set('list')"
+                        :class="view === 'list' ? 'qa-btn qa-btn-primary px-3' : 'qa-btn qa-btn-outline px-3'">☰</button>
+                </div>
+            </div>
+
+            @if (($cards ?? collect())->count() === 0)
+                <div class="mt-5 qa-card text-center">
+                    <div class="text-lg font-extrabold text-slate-900">কোন প্রশ্ন পাওয়া যায়নি</div>
+                    <div class="mt-1 text-sm text-slate-600">অন্য শব্দ দিয়ে সার্চ করুন অথবা “প্রশ্ন করুন” পেজে নতুন প্রশ্ন
+                        করুন।</div>
+                    <div class="mt-4">
+                        <a href="{{ route('ask') }}" class="qa-btn qa-btn-primary">প্রশ্ন করুন</a>
+                    </div>
+                </div>
+            @endif
+
+            <div class="mt-5" :class="view === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'">
+                @foreach ($cards ?? collect() as $row)
+                    @php
+                        $slug = $row->slug ?: 'q-' . $row->id;
+                        $shareUrl = route('questions.show', ['slug' => $slug]);
+
+                        $ans = $row->answer;
+                        $answeredBy = $ans?->answeredBy?->name ?? 'মডারেটর';
+                        $answeredAt =
+                            $ans?->answered_at ?? ($ans?->updated_at ?? ($row->published_at ?? $row->created_at));
+                        $dateLabel = $bnDateLabel($answeredAt);
+
+                        $excerpt = Str::limit(strip_tags((string) ($ans?->answer_html ?? $row->body_html)), 110);
+                        $snippet = $excerpt;
+                    @endphp
+
+                    <a href="{{ $shareUrl }}" class="block qa-card qa-card-hover"
+                        :class="view === 'list' ? 'p-4' : ''">
+
+                        {{-- GRID VIEW --}}
+                        <template x-if="view==='grid'">
+                            <div>
+                                <div class="flex items-start justify-between gap-3">
+                                    <span class="qa-badge">{{ $row->category?->name_bn ?? 'Uncategorized' }}</span>
+                                    <span class="text-xs text-slate-500">{{ $dateLabel }}</span>
+                                </div>
+
+                                <div class="mt-3 text-center">
+                                    <div class="text-sm text-slate-600">প্রশ্ন:</div>
+                                    <div class="text-3xl font-extrabold text-slate-900">{{ $bn($row->id) }}</div>
+                                </div>
+
+                                <div class="mt-3 text-sm font-semibold text-slate-800"
+                                    x-html="highlight(@js($row->title))"></div>
+                                <div class="mt-2 text-sm text-slate-600" x-html="highlight(@js($excerpt))">
+                                </div>
+
+                                <div class="mt-4 border-t pt-3 text-xs text-slate-500">
+                                    <div>উত্তর দিয়েছেন: <span
+                                            class="font-semibold text-slate-700">{{ $answeredBy }}</span></div>
+                                    <div class="mt-1">তারিখ: {{ $dateLabel }}</div>
+                                </div>
+
+                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                                    <span class="qa-btn qa-btn-outline px-3 py-1">বিস্তারিত পড়ুন →</span>
+
+                                    <button type="button" class="qa-btn qa-btn-outline qa-share-btn" title="Share"
+                                        @click.prevent.stop="qaShare(@js($shareUrl), @js($row->title))"><svg
+                                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.5" stroke="currentColor" class="size-4">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        {{-- LIST VIEW --}}
+                        <template x-if="view==='list'">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+                                <div class="sm:w-40 shrink-0">
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-xs text-slate-500">প্রশ্ন</span>
+                                        <span class="text-2xl font-extrabold text-slate-900">{{ $bn($row->id) }}</span>
+                                    </div>
+                                    <div class="mt-1 text-xs text-slate-500">{{ $dateLabel }}</div>
+                                </div>
+
+                                <div class="flex-1">
+                                    <div class="text-sm sm:text-base font-extrabold text-slate-900 leading-snug"
+                                        x-html="highlight(@js($row->title))"></div>
+
+                                    <div class="mt-1 text-sm text-slate-600 line-clamp-2"
+                                        x-html="highlight(@js($snippet))"></div>
+                                </div>
+
+                                <div class="sm:w-40 shrink-0 sm:text-right flex items-center justify-end gap-2">
+                                    <span class="qa-btn qa-btn-outline px-4">বিস্তারিত →</span>
+
+                                    <button type="button" class="qa-btn qa-btn-outline qa-share-btn" title="Share"
+                                        @click.prevent.stop="qaShare(@js($shareUrl), @js($row->title))"><svg
+                                            xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                            stroke-width="1.5" stroke="currentColor" class="size-4">
+                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                    </a>
+                @endforeach
+            </div>
+
+            <div class="mt-6 text-xs text-slate-500">
+                আরও প্রশ্ন দেখতে “সকল প্রশ্ন” পেজে যান।
+                <a class="underline font-semibold" href="{{ route('questions.index') }}">এখানে ক্লিক করুন</a>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        window.qaHomeState = function() {
+            return {
+                view: 'grid',
+                q: @js($q),
+
+                init() {
+                    const saved = localStorage.getItem('qa_view_mode');
+                    this.view = saved === 'list' ? 'list' : 'grid';
+                },
+
+                set(mode) {
+                    this.view = mode === 'list' ? 'list' : 'grid';
+                    localStorage.setItem('qa_view_mode', this.view);
+                },
+
+                clearSearch() {
+                    this.q = '';
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('q');
+                    window.history.replaceState({}, '', url.toString());
+                    window.location.reload();
+                },
+
+                highlight(text) {
+                    const raw = String(text ?? '');
+                    const escapedText = raw
+                        .replaceAll('&', '&amp;')
+                        .replaceAll('<', '&lt;')
+                        .replaceAll('>', '&gt;')
+                        .replaceAll('"', '&quot;')
+                        .replaceAll("'", '&#039;');
+
+                    const query = (this.q || '').trim();
+                    if (!query) return escapedText;
+
+                    const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const re = new RegExp(escapedQuery, 'gi');
+                    return escapedText.replace(re, (m) => `<mark class="rounded px-1">${m}</mark>`);
+                }
+            }
+        }
+    </script>
+@endsection
