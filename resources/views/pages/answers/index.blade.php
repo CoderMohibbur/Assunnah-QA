@@ -4,9 +4,45 @@
 
 @section('content')
     @php
-        $qText = $q ?? request('q', '');
-        $catVal = $cat ?? request('cat', '');
-        $sortVal = $sort ?? request('sort', 'newest');
+        use Carbon\Carbon;
+        use Illuminate\Support\Str;
+
+        $qText = trim((string) ($q ?? request('q', '')));
+        $catVal = (string) ($cat ?? request('cat', ''));
+        $sortVal = (string) ($sort ?? request('sort', 'newest'));
+
+        // Bengali digit helper
+        $bn = fn($s) => strtr((string) $s, [
+            '0' => '০',
+            '1' => '১',
+            '2' => '২',
+            '3' => '৩',
+            '4' => '৪',
+            '5' => '৫',
+            '6' => '৬',
+            '7' => '৭',
+            '8' => '৮',
+            '9' => '৯',
+        ]);
+
+        // Bengali date label helper
+        $bnDateLabel = function ($dt) use ($bn) {
+            if (!$dt) {
+                return '—';
+            }
+            try {
+                $c = $dt instanceof \DateTimeInterface ? Carbon::instance($dt) : Carbon::parse($dt);
+                $c = $c->timezone(config('app.timezone'))->locale('bn');
+                return $bn($c->translatedFormat('d F, Y'));
+            } catch (\Throwable $e) {
+                try {
+                    $c = $dt instanceof \DateTimeInterface ? Carbon::instance($dt) : Carbon::parse($dt);
+                    return $bn($c->format('d-m-Y'));
+                } catch (\Throwable $e2) {
+                    return '—';
+                }
+            }
+        };
     @endphp
 
     <div x-data="qaAnswersPage(@js($qText))" x-init="init()">
@@ -17,9 +53,8 @@
                 <input class="qa-input flex-1" name="q" x-model="q" placeholder="উত্তর খুঁজুন..." autocomplete="off" />
 
                 <button type="button" x-show="q?.length" x-cloak
-                    @click="q=''; $nextTick(()=> $el.closest('form').submit())" class="qa-btn qa-btn-outline px-4">
-                    ✕
-                </button>
+                    @click="q=''; $nextTick(()=> $el.closest('form').submit())"
+                    class="qa-btn qa-btn-outline px-4">✕</button>
 
                 <button type="submit" class="qa-btn qa-btn-primary px-5">🔍</button>
 
@@ -82,29 +117,29 @@
 
             {{-- List/Grid --}}
             <div class="mt-6" :class="view === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'">
-
                 @foreach ($answers as $row)
                     @php
                         $ans = $row->answer;
 
-                        // ✅ MUST: slug + shareUrl
                         $slug = $row->slug ?: 'q-' . $row->id;
                         $shareUrl = route('questions.show', ['slug' => $slug]);
 
                         $answeredBy = $ans?->answeredBy?->name ?? 'মডারেটর';
-                        $answeredAt = $ans?->answered_at ?? ($ans?->updated_at ?? $row->updated_at);
-                        $dateLabel = $answeredAt ? $answeredAt->format('Y-m-d') : '';
+                        $answeredAt =
+                            $ans?->answered_at ?? ($ans?->updated_at ?? ($row->published_at ?? $row->created_at));
+                        $dateLabel = $bnDateLabel($answeredAt);
 
-                        $excerpt = \Illuminate\Support\Str::limit(
-                            strip_tags((string) ($ans?->answer_html ?? $row->body_html)),
-                            120,
-                        );
+                        $excerpt = Str::limit(strip_tags((string) ($ans?->answer_html ?? $row->body_html)), 120);
+                        $snippet = $excerpt; // ✅ list view uses it
                     @endphp
 
-                    <a href="{{ $shareUrl }}" class="block qa-card qa-card-hover"
-                        :class="view === 'list' ? 'p-4' : ''">
+                    {{-- ✅ Clickable Card --}}
+                    <div class="qa-card qa-card-hover cursor-pointer" :class="view === 'list' ? 'p-4' : ''"
+                        role="link" tabindex="0" @click="window.location.href = @js($shareUrl)"
+                        @keydown.enter="window.location.href = @js($shareUrl)"
+                        @keydown.space.prevent="window.location.href = @js($shareUrl)">
 
-                        {{-- GRID --}}
+                        {{-- GRID VIEW --}}
                         <template x-if="view==='grid'">
                             <div>
                                 <div class="flex items-start justify-between gap-3">
@@ -114,17 +149,19 @@
 
                                 <div class="mt-3 text-center">
                                     <div class="text-sm text-slate-600">প্রশ্ন:</div>
-                                    <div class="text-3xl font-extrabold text-slate-900">{{ $row->id }}</div>
+                                    <div class="text-3xl font-extrabold text-slate-900">{{ $bn($row->id) }}</div>
                                 </div>
 
                                 <div class="mt-3 text-sm font-semibold text-slate-800"
                                     x-html="highlight(@js($row->title))"></div>
+
                                 <div class="mt-2 text-sm text-slate-600" x-html="highlight(@js($excerpt))">
                                 </div>
 
                                 <div class="mt-4 border-t pt-3 text-xs text-slate-500">
-                                    <div>উত্তর দিয়েছেন: <span
-                                            class="font-semibold text-slate-700">{{ $answeredBy }}</span></div>
+                                    <div>উত্তর দিয়েছেন:
+                                        <span class="font-semibold text-slate-700">{{ $answeredBy }}</span>
+                                    </div>
                                     <div class="mt-1">তারিখ: {{ $dateLabel }}</div>
                                 </div>
 
@@ -132,30 +169,26 @@
                                     <span class="qa-btn qa-btn-outline px-3 py-1">বিস্তারিত পড়ুন →</span>
 
                                     <button type="button" class="qa-btn qa-btn-outline qa-share-btn" title="Share"
-                                        @click.prevent.stop="qaShare(@js($shareUrl), @js($row->title))">
+                                        @click.stop.prevent="qaShare($event, @js($shareUrl), @js($row->title))">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                             stroke-width="1.5" stroke="currentColor" class="size-4">
                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                 d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
                                         </svg>
-
                                     </button>
                                 </div>
                             </div>
                         </template>
 
-                        {{-- LIST --}}
+                        {{-- LIST VIEW --}}
                         <template x-if="view==='list'">
                             <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                                <div class="sm:w-52 shrink-0">
+                                <div class="sm:w-40 shrink-0">
                                     <div class="flex items-baseline gap-2">
                                         <span class="text-xs text-slate-500">প্রশ্ন</span>
-                                        <span class="text-2xl font-extrabold text-slate-900">{{ $row->id }}</span>
+                                        <span class="text-2xl font-extrabold text-slate-900">{{ $bn($row->id) }}</span>
                                     </div>
                                     <div class="mt-1 text-xs text-slate-500">{{ $dateLabel }}</div>
-                                    <div class="mt-2">
-                                        <span class="qa-badge">{{ $row->category?->name_bn ?? 'Uncategorized' }}</span>
-                                    </div>
                                 </div>
 
                                 <div class="flex-1">
@@ -163,32 +196,24 @@
                                         x-html="highlight(@js($row->title))"></div>
 
                                     <div class="mt-1 text-sm text-slate-600 line-clamp-2"
-                                        x-html="highlight(@js($excerpt))"></div>
-
-                                    <div class="mt-2 text-xs text-slate-500">
-                                        উত্তর দিয়েছেন: <span
-                                            class="font-semibold text-slate-700">{{ $answeredBy }}</span>
-                                        • {{ $dateLabel }}
-                                    </div>
+                                        x-html="highlight(@js($snippet))"></div>
                                 </div>
 
                                 <div class="sm:w-40 shrink-0 sm:text-right flex items-center justify-end gap-2">
                                     <span class="qa-btn qa-btn-outline px-4">বিস্তারিত →</span>
 
                                     <button type="button" class="qa-btn qa-btn-outline qa-share-btn" title="Share"
-                                        @click.prevent.stop="qaShare(@js($shareUrl), @js($row->title))">
+                                        @click.stop.prevent="qaShare($event, @js($shareUrl), @js($row->title))">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                             stroke-width="1.5" stroke="currentColor" class="size-4">
                                             <path stroke-linecap="round" stroke-linejoin="round"
                                                 d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
                                         </svg>
-
                                     </button>
                                 </div>
                             </div>
                         </template>
-
-                    </a>
+                    </div>
                 @endforeach
             </div>
 
@@ -197,7 +222,6 @@
                 {{ $answers->links() }}
             </div>
         </div>
-
     </div>
 
     {{-- Page Script --}}
@@ -237,5 +261,105 @@
                 }
             }
         }
+    </script>
+
+
+    {{-- Share button Script --}}
+    <script>
+        (function() {
+            function toast(msg, type = 'success') {
+                if (window.toast) {
+                    window.toast({
+                        title: type === 'success' ? '✅ Done' : '⚠️ Notice',
+                        message: msg
+                    });
+                    return;
+                }
+                console.log(msg);
+            }
+
+            function stop(ev) {
+                if (!ev) return;
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+            }
+
+            // ✅ First try execCommand (no permission prompt usually)
+            function copyByExecCommand(text) {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    ta.setAttribute('readonly', '');
+                    ta.style.position = 'fixed';
+                    ta.style.top = '-9999px';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    ta.setSelectionRange(0, 999999);
+                    const ok = document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    return !!ok;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            async function copyText(text) {
+                // sync copy first
+                if (copyByExecCommand(text)) return true;
+
+                // fallback modern clipboard
+                try {
+                    if (navigator.clipboard) {
+                        await navigator.clipboard.writeText(text);
+                        return true;
+                    }
+                } catch (e) {}
+                return false;
+            }
+
+            // ✅ Only runs on click (because you pass $event)
+            window.qaShare = async function(ev, url, title) {
+                stop(ev);
+
+                // extra safety: if somehow called without user gesture, do nothing
+                if (navigator.userActivation && !navigator.userActivation.isActive) return;
+
+                const shareUrl = (url && String(url).trim()) ? String(url).trim() : window.location.href;
+                const shareTitle = (title && String(title).trim()) ? String(title).trim() : document.title;
+
+                // native share (mobile)
+                try {
+                    if (navigator.share) {
+                        await navigator.share({
+                            title: shareTitle,
+                            url: shareUrl
+                        });
+                        return;
+                    }
+                } catch (e) {
+                    // ignore and fallback to copy
+                }
+
+                const ok = await copyText(shareUrl);
+                toast(ok ? 'লিংক কপি হয়েছে ✅' : 'কপি করা যায়নি (ব্রাউজার ব্লক করছে)।', ok ? 'success' : 'warn');
+            };
+
+            // ✅ social share dropdown helpers (optional)
+            window.qaShareTo = function(platform, url, title, ev) {
+                stop(ev);
+                const u = encodeURIComponent(url || window.location.href);
+                const t = encodeURIComponent(title || document.title);
+
+                let share = '';
+                if (platform === 'facebook') share = `https://www.facebook.com/sharer/sharer.php?u=${u}`;
+                if (platform === 'whatsapp') share = `https://wa.me/?text=${t}%20${u}`;
+                if (platform === 'telegram') share = `https://t.me/share/url?url=${u}&text=${t}`;
+                if (!share) return;
+
+                window.open(share, '_blank', 'noopener,noreferrer');
+            };
+        })();
     </script>
 @endsection

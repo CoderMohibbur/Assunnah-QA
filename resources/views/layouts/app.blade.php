@@ -69,32 +69,6 @@
 
     @stack('scripts')
 
-    {{-- Share button Script --}}
-    <script>
-        window.qaShare = async function(url, title) {
-            try {
-                const shareUrl = url || window.location.href;
-                const shareTitle = title || document.title;
-
-                if (navigator.share) {
-                    await navigator.share({
-                        title: shareTitle,
-                        url: shareUrl
-                    });
-                    return;
-                }
-
-                // fallback: copy link
-                await navigator.clipboard.writeText(shareUrl);
-                alert('লিংক কপি হয়েছে ✅');
-            } catch (e) {
-                // last fallback
-                try {
-                    prompt('এই লিংক কপি করুন:', url || window.location.href);
-                } catch (e2) {}
-            }
-        }
-    </script>
 
 </body>
 

@@ -28,14 +28,14 @@ class PublicAnswerController extends Controller
                 'category:id,name_bn,slug',
                 'answer' => function ($q) {
                     $q->whereNull('deleted_at')
-                      ->where('status', 'published');
+                        ->where('status', 'published');
                 },
                 'answer.answeredBy:id,name',
             ])
             ->whereNull('deleted_at')
             ->whereHas('answer', function ($q) {
                 $q->whereNull('deleted_at')
-                  ->where('status', 'published');
+                    ->where('status', 'published');
             });
 
         // ✅ category filter (cat=slug OR cat=id)
@@ -51,7 +51,7 @@ class PublicAnswerController extends Controller
         if ($q !== '') {
             $rows->where(function ($w) use ($q) {
                 $w->where('title', 'like', "%{$q}%")
-                  ->orWhere('body_html', 'like', "%{$q}%");
+                    ->orWhere('body_html', 'like', "%{$q}%");
             });
         }
 
@@ -61,10 +61,10 @@ class PublicAnswerController extends Controller
         } elseif ($sort === 'oldest') {
             // answered_at না থাকলে updated_at
             $rows->orderByRaw('COALESCE((select answered_at from answers where answers.question_id = questions.id limit 1), questions.updated_at) asc')
-                 ->orderBy('id', 'asc');
+                ->orderBy('id', 'asc');
         } else {
             $rows->orderByRaw('COALESCE((select answered_at from answers where answers.question_id = questions.id limit 1), questions.updated_at) desc')
-                 ->orderBy('id', 'desc');
+                ->orderBy('id', 'desc');
         }
 
         $answers = $rows->paginate(12)->withQueryString();
