@@ -39,6 +39,9 @@
                 }
             }
         };
+
+        $canSeeAsker = (bool) ($canSeeAsker ?? false);
+
     @endphp
 
     <div x-data="qaHomeState()" x-init="init()">
@@ -216,6 +219,12 @@
 
                         $excerpt = Str::limit(strip_tags((string) ($ans?->answer_html ?? $row->body_html)), 110);
                         $snippet = $excerpt;
+
+                        $askerName = $row->asker_name ?? ($row->name ?? null);
+                        $askerMobile = $row->asker_phone ?? null;
+                        $askerEmail = $row->asker_email ?? ($row->email ?? null);
+                        $askedAtLabel = $bnDateLabel($row->created_at);
+
                     @endphp
 
                     {{-- ✅ Clickable Card (NO overlay link) --}}
@@ -223,6 +232,7 @@
                         role="link" tabindex="0" @click="window.location.href = @js($shareUrl)"
                         @keydown.enter="window.location.href = @js($shareUrl)"
                         @keydown.space.prevent="window.location.href = @js($shareUrl)">
+
 
                         {{-- GRID VIEW --}}
                         <template x-if="view==='grid'">
@@ -233,8 +243,8 @@
                                 </div>
 
                                 <div class="mt-3 text-center">
-                                    <div class="text-sm text-slate-600">প্রশ্ন:</div>
-                                    <div class="text-3xl font-extrabold text-slate-900">{{ $bn($row->id) }}</div>
+                                    <div class="text-3xl text-slate-900">প্রশ্ন:</div>
+                                    {{-- <div class="text-3xl font-extrabold text-slate-900">{{ $bn($row->id) }}</div> --}}
                                 </div>
 
                                 <div class="mt-3 text-sm font-semibold text-slate-800"
@@ -247,6 +257,27 @@
                                             class="font-semibold text-slate-700">{{ $answeredBy }}</span></div>
                                     <div class="mt-1">তারিখ: {{ $dateLabel }}</div>
                                 </div>
+
+                                @if ($canSeeAsker)
+                                    <div
+                                        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
+                                        <div class="font-extrabold text-amber-800 mb-1">🔒 Admin Only — প্রশ্নকারী তথ্য
+                                        </div>
+
+                                        <div>নাম: <span class="font-semibold">{{ $askerName ?? '—' }}</span></div>
+                                        <div class="mt-1">মোবাইল: <span
+                                                class="font-semibold">{{ $askerMobile ?? '—' }}</span></div>
+
+                                        @if (!empty($askerEmail))
+                                            <div class="mt-1">ইমেইল: <span
+                                                    class="font-semibold">{{ $askerEmail }}</span></div>
+                                        @endif
+
+                                        <div class="mt-1">প্রশ্নের তারিখ: <span
+                                                class="font-semibold">{{ $askedAtLabel }}</span></div>
+                                    </div>
+                                @endif
+
 
                                 <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
                                     <span class="qa-btn qa-btn-outline px-3 py-1">বিস্তারিত পড়ুন →</span>
@@ -281,6 +312,26 @@
                                     <div class="mt-1 text-sm text-slate-600 line-clamp-2"
                                         x-html="highlight(@js($snippet))"></div>
                                 </div>
+
+                                @if ($canSeeAsker)
+                                    <div
+                                        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
+                                        <div class="font-extrabold text-amber-800 mb-1">🔒 Admin Only — প্রশ্নকারী তথ্য
+                                        </div>
+
+                                        <div>নাম: <span class="font-semibold">{{ $askerName ?? '—' }}</span></div>
+                                        <div class="mt-1">মোবাইল: <span
+                                                class="font-semibold">{{ $askerMobile ?? '—' }}</span></div>
+
+                                        @if (!empty($askerEmail))
+                                            <div class="mt-1">ইমেইল: <span
+                                                    class="font-semibold">{{ $askerEmail }}</span></div>
+                                        @endif
+
+                                        <div class="mt-1">প্রশ্নের তারিখ: <span
+                                                class="font-semibold">{{ $askedAtLabel }}</span></div>
+                                    </div>
+                                @endif
 
                                 <div class="sm:w-40 shrink-0 sm:text-right flex items-center justify-end gap-2">
                                     <span class="qa-btn qa-btn-outline px-4">বিস্তারিত →</span>

@@ -4,8 +4,43 @@
 
 @section('content')
     @php
+        use Carbon\Carbon;
+
         $answer = $question->answer ?? null;
         $isAnswerPublished = $answer && $answer->status === 'published' && empty($answer->deleted_at);
+
+        // ✅ admin flag (controller থেকে আসবে)
+        $canSeeAsker = (bool) ($canSeeAsker ?? false);
+
+        // ✅ helpers
+        $bn = fn($s) => strtr((string) $s, [
+            '0' => '০','1' => '১','2' => '২','3' => '৩','4' => '৪',
+            '5' => '৫','6' => '৬','7' => '৭','8' => '৮','9' => '৯',
+        ]);
+
+        $bnDateLabel = function ($dt) use ($bn) {
+            if (!$dt) return '—';
+            try {
+                $c = $dt instanceof \DateTimeInterface ? Carbon::instance($dt) : Carbon::parse($dt);
+                $c = $c->timezone(config('app.timezone'))->locale('bn');
+                return $bn($c->translatedFormat('d F, Y'));
+            } catch (\Throwable $e) {
+                try {
+                    $c = $dt instanceof \DateTimeInterface ? Carbon::instance($dt) : Carbon::parse($dt);
+                    return $bn($c->format('Y-m-d'));
+                } catch (\Throwable $e2) {
+                    return '—';
+                }
+            }
+        };
+
+        // ✅ asker fields (table column অনুযায়ী)
+        $askerName  = $question->asker_name ?? null;
+        $askerPhone = $question->asker_phone ?? null;
+        $askerEmail = $question->asker_email ?? null;
+
+        $askedAtLabel = $bnDateLabel($question->created_at);
+        $publishedLabel = $bnDateLabel($question->published_at ?? $question->created_at);
     @endphp
 
     {{-- Header --}}
@@ -19,20 +54,35 @@
                         </a>
                     @endif
 
-                    <span class="text-xs text-slate-500">• প্রশ্ন #{{ $question->id }}</span>
-                    <span class="text-xs text-slate-500">• ভিউ: {{ (int) ($question->view_count ?? 0) }}</span>
-                    <span class="text-xs text-slate-500">•
-                        {{ optional($question->published_at ?? $question->created_at)->format('Y-m-d') }}</span>
+                    {{-- <span class="text-xs text-slate-500">• প্রশ্ন #{{ $bn($question->id) }}</span> --}}
+                    <span class="text-xs text-slate-500">• ভিউ: {{ $bn((int) ($question->view_count ?? 0)) }}</span>
+                    <span class="text-xs text-slate-500">• {{ $publishedLabel }}</span>
                 </div>
 
                 <h1 class="mt-3 text-xl md:text-2xl font-extrabold text-slate-900 leading-snug">
                     {{ $question->title }}
                 </h1>
 
-                {{-- Public এ Phone/Email দেখাবেন না (privacy) --}}
+                {{-- Public: শুধু নাম (privacy) --}}
                 <div class="mt-2 text-sm text-slate-600">
-                    প্রশ্নকারী: <span class="font-semibold text-slate-800">{{ $question->asker_name }}</span>
+                    প্রশ্নকারী: <span class="font-semibold text-slate-800">{{ $askerName ?? '—' }}</span>
                 </div>
+
+                {{-- ✅ Admin Only: full asker info --}}
+                @if ($canSeeAsker)
+                    <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
+                        <div class="font-extrabold text-amber-800 mb-1">🔒 Admin Only — প্রশ্নকারী তথ্য</div>
+
+                        <div>নাম: <span class="font-semibold">{{ $askerName ?? '—' }}</span></div>
+                        <div class="mt-1">মোবাইল: <span class="font-semibold">{{ $askerPhone ?? '—' }}</span></div>
+
+                        @if (!empty($askerEmail))
+                            <div class="mt-1">ইমেইল: <span class="font-semibold">{{ $askerEmail }}</span></div>
+                        @endif
+
+                        <div class="mt-1">প্রশ্নের তারিখ: <span class="font-semibold">{{ $askedAtLabel }}</span></div>
+                    </div>
+                @endif
             </div>
 
             <div class="flex flex-wrap gap-2 md:justify-end items-center">
@@ -113,6 +163,7 @@
         @endif
     </div>
 @endsection
+
 @push('scripts')
     <script>
         window.qaShare = function() {
@@ -130,21 +181,15 @@
                     return 'https://wa.me/?text=' + encodeURIComponent(title + ' — ' + url);
                 },
                 get tg() {
-                    return 'https://t.me/share/url?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(
-                        title);
+                    return 'https://t.me/share/url?url=' + encodeURIComponent(url) + '&text=' + encodeURIComponent(title);
                 },
 
                 async copy() {
                     try {
                         await navigator.clipboard.writeText(url);
                         this.open = false;
-                        if (window.toast) window.toast({
-                            title: 'Copied ✅',
-                            message: 'Link copy হয়েছে।',
-                            link: ''
-                        });
+                        if (window.toast) window.toast({ title: 'Copied ✅', message: 'Link copy হয়েছে।', link: '' });
                     } catch (e) {
-                        // fallback
                         const ta = document.createElement('textarea');
                         ta.value = url;
                         document.body.appendChild(ta);
@@ -152,20 +197,13 @@
                         document.execCommand('copy');
                         ta.remove();
                         this.open = false;
-                        if (window.toast) window.toast({
-                            title: 'Copied ✅',
-                            message: 'Link copy হয়েছে।',
-                            link: ''
-                        });
+                        if (window.toast) window.toast({ title: 'Copied ✅', message: 'Link copy হয়েছে।', link: '' });
                     }
                 },
 
                 async native() {
                     try {
-                        await navigator.share({
-                            title,
-                            url
-                        });
+                        await navigator.share({ title, url });
                         this.open = false;
                     } catch (e) {}
                 }

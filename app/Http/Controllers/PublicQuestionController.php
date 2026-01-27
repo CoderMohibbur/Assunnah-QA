@@ -8,6 +8,16 @@ use Illuminate\Http\Request;
 
 class PublicQuestionController extends Controller
 {
+    private function canSeeAsker(): bool
+    {
+        if (!auth()->check()) return false;
+
+        $u = auth()->user();
+        if (method_exists($u, 'isAdmin')) return (bool) $u->isAdmin();
+
+        return false;
+    }
+
     /**
      * ✅ All published questions list (DB driven)
      */
@@ -23,7 +33,25 @@ class PublicQuestionController extends Controller
             $sort = 'newest';
         }
 
+        $canSeeAsker = $this->canSeeAsker();
+
+        // ✅ Only select necessary columns (PII only for admin)
+        $baseCols = [
+            'id',
+            'category_id',
+            'slug',
+            'title',
+            'body_html',
+            'status',
+            'published_at',
+            'view_count',
+            'created_at',
+            'updated_at',
+        ];
+        $askerCols = $canSeeAsker ? ['asker_name', 'asker_phone', 'asker_email'] : [];
+
         $query = Question::query()
+            ->select(array_merge($baseCols, $askerCols))
             ->with([
                 'category:id,name_bn,slug',
                 'answer' => function ($q) {
@@ -63,7 +91,6 @@ class PublicQuestionController extends Controller
             $query->orderByDesc('published_at')->orderByDesc('id');
         }
 
-        // ✅ IMPORTANT: category_id must be present
         $questions = $query->paginate(12)->withQueryString();
 
         $categories = Category::query()
@@ -79,18 +106,33 @@ class PublicQuestionController extends Controller
             'q',
             'categoryId',
             'sort',
-            'answered'
+            'answered',
+            'canSeeAsker'
         ));
     }
-
 
     /**
      * ✅ Question detail
      */
     public function show(string $slug)
     {
+        $canSeeAsker = $this->canSeeAsker();
+
+        $baseCols = [
+            'id','category_id','slug','title','body_html','status',
+            'published_at','view_count','created_at','updated_at',
+        ];
+        $askerCols = $canSeeAsker ? ['asker_name', 'asker_phone', 'asker_email'] : [];
+
         $query = Question::query()
-            ->with(['category', 'answer'])
+            ->select(array_merge($baseCols, $askerCols))
+            ->with([
+                'category:id,name_bn,slug',
+                'answer' => function ($q) {
+                    $q->whereNull('deleted_at')->where('status', 'published');
+                },
+                'answer.answeredBy:id,name',
+            ])
             ->whereNull('deleted_at')
             ->where('status', 'published');
 
@@ -102,7 +144,8 @@ class PublicQuestionController extends Controller
 
         $question->increment('view_count');
 
-        return view('pages.questions.show', compact('question'));
+        // view এ চাইলে ব্যবহার করবেন (এখন না হলেও ক্ষতি নাই)
+        return view('pages.questions.show', compact('question', 'canSeeAsker'));
     }
 
     /**
@@ -110,14 +153,29 @@ class PublicQuestionController extends Controller
      */
     public function category(string $slug)
     {
+        $canSeeAsker = $this->canSeeAsker();
+
         $category = Category::query()
             ->whereNull('deleted_at')
             ->where('is_active', 1)
             ->where('slug', $slug)
             ->firstOrFail();
 
+        $baseCols = [
+            'id','category_id','slug','title','body_html','status',
+            'published_at','view_count','created_at','updated_at',
+        ];
+        $askerCols = $canSeeAsker ? ['asker_name', 'asker_phone', 'asker_email'] : [];
+
         $questions = Question::query()
-            ->with(['category', 'answer'])
+            ->select(array_merge($baseCols, $askerCols))
+            ->with([
+                'category:id,name_bn,slug',
+                'answer' => function ($q) {
+                    $q->whereNull('deleted_at')->where('status', 'published');
+                },
+                'answer.answeredBy:id,name',
+            ])
             ->whereNull('deleted_at')
             ->where('status', 'published')
             ->where('category_id', $category->id)
@@ -126,6 +184,6 @@ class PublicQuestionController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        return view('pages.categories.show', compact('category', 'questions'));
+        return view('pages.categories.show', compact('category', 'questions', 'canSeeAsker'));
     }
 }
