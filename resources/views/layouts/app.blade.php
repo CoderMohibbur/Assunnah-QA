@@ -45,7 +45,7 @@
     @else
         @php
             // /ask বা /ask/* হলে sidebar hide
-            $showSidebar = !request()->is('ask') && !request()->is('ask/*');
+            $showSidebar = !request()->is('ask', 'about') && !request()->is('ask/*');
 
             // আপনি যদি named route use করেন, চাইলে এভাবে আরও strong করতে পারেন:
             // $showSidebar = !request()->routeIs('ask') && !request()->routeIs('ask.*') && !request()->is('ask') && !request()->is('ask/*');
