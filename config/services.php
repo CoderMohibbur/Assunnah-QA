@@ -14,6 +14,14 @@ return [
     |
     */
 
+    'rapid_sms' => [
+        'enabled'  => env('RAPID_SMS_ENABLED', false),
+        'base_url' => env('RAPID_SMS_BASE_URL', 'https://sms.rapidsms.xyz'),
+        'user_id'  => env('RAPID_SMS_USER_ID'),
+        'password' => env('RAPID_SMS_PASSWORD'),
+    ],
+
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
