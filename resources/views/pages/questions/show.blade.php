@@ -54,7 +54,7 @@
                         </a>
                     @endif
 
-                    {{-- <span class="text-xs text-slate-500">• প্রশ্ন #{{ $bn($question->id) }}</span> --}}
+                    <span class="text-xs text-slate-500">• প্রশ্ন #{{ $bn($question->id) }}</span>
                     <span class="text-xs text-slate-500">• ভিউ: {{ $bn((int) ($question->view_count ?? 0)) }}</span>
                     <span class="text-xs text-slate-500">• {{ $publishedLabel }}</span>
                 </div>

@@ -43,25 +43,46 @@
             @yield('content')
         </main>
     @else
+        @php
+            // /ask বা /ask/* হলে sidebar hide
+            $showSidebar = !request()->is('ask') && !request()->is('ask/*');
+
+            // আপনি যদি named route use করেন, চাইলে এভাবে আরও strong করতে পারেন:
+            // $showSidebar = !request()->routeIs('ask') && !request()->routeIs('ask.*') && !request()->is('ask') && !request()->is('ask/*');
+
+        @endphp
+
         @include('partials.nav')
         @include('partials.hero')
 
         <main class="qa-container py-8">
-            <div class="mb-4 lg:hidden">
-                <button type="button" @click="$store.drawer.toggleSidebar()"
-                    class="qa-btn qa-btn-outline w-full justify-between">
-                    <span class="font-extrabold">ক্যাটাগরি</span>
-                    <span>☰</span>
-                </button>
-            </div>
+
+            {{-- Mobile category button only when sidebar is visible --}}
+            @if ($showSidebar)
+                <div class="mb-4 lg:hidden">
+                    <button type="button" @click="$store.drawer.toggleSidebar()"
+                        class="qa-btn qa-btn-outline w-full justify-between">
+                        <span class="font-extrabold">ক্যাটাগরি</span>
+                        <span>☰</span>
+                    </button>
+                </div>
+            @endif
 
             <div class="grid grid-cols-12 gap-6">
-                @include('partials.sidebar')
-                <section class="col-span-12 lg:col-span-9">
-                    @yield('content')
-                </section>
+                @if ($showSidebar)
+                    @include('partials.sidebar')
+                    <section class="col-span-12 lg:col-span-9">
+                        @yield('content')
+                    </section>
+                @else
+                    {{-- /ask page: full width content --}}
+                    <section class="col-span-12">
+                        @yield('content')
+                    </section>
+                @endif
             </div>
         </main>
+
     @endif
 
     @include('partials.toast')

@@ -169,8 +169,8 @@
                                 </div>
 
                                 <div class="mt-3 text-center">
-                                    <div class="text-3xl text-slate-900">প্রশ্ন:</div>
-                                    {{-- <div class="text-3xl font-extrabold text-slate-900">{{ $bn($row->id) }}</div> --}}
+                                    <div class="text-sm text-slate-600">প্রশ্ন:</div>
+                                    <div class="text-3xl font-extrabold text-slate-900">{{ $bn($row->id) }}</div>
                                 </div>
 
                                 <div class="mt-3 text-sm font-semibold text-slate-800"

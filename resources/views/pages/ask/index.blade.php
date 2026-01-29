@@ -35,6 +35,61 @@
                 <a href="{{ route('questions.index') }}" class="qa-btn qa-btn-outline">সব প্রশ্ন দেখুন</a>
             </div>
         </div>
+        {{-- Quick Search Bar (Search first) --}}
+        <div class="mt-6">
+            <div class="qa-card p-3">
+                <form method="GET" action="{{ route('questions.index') }}" class="flex gap-3 items-center"
+                    @submit="if(!(searchQ||'').trim()){ $event.preventDefault(); }">
+                    <input class="qa-input flex-1" name="q" x-model="searchQ"
+                        @input.debounce.350ms="fetchSearchSuggestions()" @keydown.escape.window="clearSearchBar()"
+                        placeholder="আগে সার্চ করুন... (যেমন: নামাজ, রোজা, আকিদা)" autocomplete="off" />
+
+
+                    <button type="button" x-show="searchQ?.length" x-cloak @click="clearSearchBar()"
+                        class="qa-btn qa-btn-outline px-4">✕</button>
+
+                    <button type="submit" class="qa-btn qa-btn-primary px-5">🔍</button>
+                </form>
+            </div>
+
+            {{-- Live suggestions for Quick Search --}}
+            <div class="mt-3" x-show="searchQ.trim().length >= minChars" x-cloak>
+                <div class="qa-card p-3 border border-slate-200 bg-white/80">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="text-sm font-extrabold text-slate-900">সাজেশন</div>
+
+                        <div class="text-xs text-slate-500 flex items-center gap-2" x-show="searchLoading">
+                            <span class="inline-block h-2 w-2 rounded-full bg-cyan-500 animate-pulse"></span>
+                            লোড হচ্ছে...
+                        </div>
+                    </div>
+
+                    <div class="mt-3 space-y-2" x-show="searchSuggestions.length">
+                        <template x-for="s in searchSuggestions" :key="'sq-' + s.id">
+                            <a :href="s.url"
+                                class="block rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 hover:shadow-sm transition">
+                                <div class="font-bold text-slate-900 text-sm" x-html="highlightSearchSafe(s.title)"></div>
+                                <div class="mt-1 text-xs text-slate-600">
+                                    ক্লিক করলে প্রশ্নটি ওপেন হবে →
+                                    <span class="font-semibold text-slate-700"
+                                        x-text="Math.round((s.confidence || 0) * 100) + '%'"></span>
+                                </div>
+                            </a>
+                        </template>
+                    </div>
+
+                    <div class="mt-3 text-xs text-slate-600"
+                        x-show="!searchLoading && !searchSuggestions.length && !searchRateLimited">
+                        কোনো মিল পাওয়া যায়নি।
+                    </div>
+
+                    <div class="mt-3 text-xs text-amber-700" x-show="searchRateLimited" x-cloak>
+                        অনেক দ্রুত টাইপ করলে লিমিট হতে পারে। ২–৩ সেকেন্ড পর আবার চেষ্টা করুন।
+                    </div>
+                </div>
+            </div>
+
+        </div>
 
         {{-- Important hint / search-first --}}
         <div class="mt-6 qa-card border border-cyan-200 bg-cyan-50/60">
@@ -242,10 +297,18 @@
                 toastCooldown: Number(opts.toastCooldown || 12),
 
                 // state
+                searchQ: '',
                 title: '',
                 suggestions: [],
                 loading: false,
                 rateLimited: false,
+
+                searchSuggestions: [],
+                searchLoading: false,
+                searchRateLimited: false,
+                searchLastQuery: '',
+                searchController: null,
+
 
                 lastQuery: '',
                 controller: null,
@@ -254,11 +317,72 @@
                 lastToastAt: 0,
 
                 init() {
+                    this.searchQ = @js(trim((string) request('q', '')));
                     this.title = @js(old('title', ''));
                     if ((this.title || '').trim().length >= this.minChars) {
                         this.fetchSuggestions(); // ✅ validation error হলে suggestions auto দেখাবে
                     }
                 },
+
+                clearSearchBar() {
+                    this.searchQ = '';
+                    this.searchSuggestions = [];
+                    this.searchLoading = false;
+                    this.searchRateLimited = false;
+                    this.searchLastQuery = '';
+
+                    if (this.searchController) this.searchController.abort();
+                    this.searchController = null;
+
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('q');
+                    window.history.replaceState({}, '', url.toString());
+                },
+
+
+                async fetchSearchSuggestions() {
+                    const t = (this.searchQ || '').trim();
+
+                    this.searchRateLimited = false;
+
+                    if (t.length < this.minChars) {
+                        this.searchSuggestions = [];
+                        this.searchLoading = false;
+                        this.searchLastQuery = '';
+                        return;
+                    }
+
+                    if (t === this.searchLastQuery) return;
+                    this.searchLastQuery = t;
+
+                    if (this.searchController) this.searchController.abort();
+                    this.searchController = new AbortController();
+
+                    this.searchLoading = true;
+
+                    try {
+                        const res = await fetch(this.endpoint + '?title=' + encodeURIComponent(t), {
+                            headers: {
+                                'Accept': 'application/json'
+                            },
+                            signal: this.searchController.signal
+                        });
+
+                        if (!res.ok) {
+                            if (res.status === 429) this.searchRateLimited = true;
+                            throw new Error('Suggest API failed: ' + res.status);
+                        }
+
+                        const json = await res.json();
+                        this.searchSuggestions = json.data || [];
+                    } catch (e) {
+                        // Abort হলে ignore
+                    } finally {
+                        this.searchLoading = false;
+                    }
+                },
+
+
 
                 async fetchSuggestions() {
                     const t = (this.title || '').trim();
@@ -314,7 +438,7 @@
 
                                 if (window.toast) {
                                     const conf = Number(top.confidence ?? (Number(top.score || 0) / 100) ??
-                                    0); // 0-1
+                                        0); // 0-1
                                     const pct = Math.round(conf * 100);
 
                                     window.toast({
@@ -369,6 +493,21 @@
                         `<mark class="rounded px-1 bg-yellow-200/80">${this.escapeHtml(m)}</mark>`
                     );
                 },
+
+                highlightSearchSafe(text) {
+                    const q = (this.searchQ || '').trim();
+                    const safeText = this.escapeHtml(text);
+
+                    if (q.length < this.minChars) return safeText;
+
+                    const escapedQuery = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const re = new RegExp(escapedQuery, 'gi');
+
+                    return safeText.replace(re, (m) =>
+                        `<mark class="rounded px-1 bg-yellow-200/80">${this.escapeHtml(m)}</mark>`
+                    );
+                },
+
             }
         }
     </script>

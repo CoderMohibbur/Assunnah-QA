@@ -67,7 +67,7 @@
         <span class="qa-badge">Filter</span>
       </div>
 
-      <div class="mt-4 space-y-2">
+      <div class="mt-4 space-y-2 max-h-[60vh] overflow-y-auto pr-1">
         @foreach($categories as $c)
           @php
             $url = route('categories.show', $c['slug']);
