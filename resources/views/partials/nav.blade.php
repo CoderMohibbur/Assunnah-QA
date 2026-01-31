@@ -35,17 +35,27 @@
         </nav>
 
         {{-- Right / Desktop --}}
+        {{-- Right / Desktop --}}
         <div class="hidden md:flex items-center gap-2">
             @auth
                 @can('qa.view_admin')
                     <a href="{{ route('admin.dashboard') }}" class="qa-btn qa-btn-outline">Admin</a>
                 @endcan
 
-                <a href="{{ route('dashboard') }}" class="qa-btn qa-btn-outline">Dashboard</a>
+                {{-- <a href="{{ route('dashboard') }}" class="qa-btn qa-btn-outline">Dashboard</a> --}}
+
+                {{-- ✅ Sign out --}}
+                <form method="POST" action="{{ route('logout') }}" class="inline">
+                    @csrf
+                    <button type="submit" class="qa-btn qa-btn-outline">
+                        Sign out
+                    </button>
+                </form>
             @else
                 <a href="{{ route('login') }}" class="qa-btn qa-btn-outline">Log In</a>
             @endauth
         </div>
+
 
         {{-- Mobile button --}}
         <button @click="open = !open"
@@ -88,11 +98,20 @@
                         <a href="{{ route('admin.dashboard') }}" class="qa-btn qa-btn-outline w-full">Admin</a>
                     @endcan
 
-                    <a href="{{ route('dashboard') }}" class="qa-btn qa-btn-outline w-full">Dashboard</a>
+                    {{-- <a href="{{ route('dashboard') }}" class="qa-btn qa-btn-outline w-full">Dashboard</a> --}}
+
+                    {{-- ✅ Sign out --}}
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="qa-btn qa-btn-outline w-full">
+                            Sign out
+                        </button>
+                    </form>
                 @else
                     <a href="{{ route('login') }}" class="qa-btn qa-btn-outline w-full">Log In</a>
                 @endauth
             </div>
+
         </div>
     </div>
 </header>

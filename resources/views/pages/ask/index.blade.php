@@ -243,12 +243,12 @@
 
                 {{-- Title --}}
                 <div>
-                    <label class="text-sm font-bold text-slate-800">প্রশ্নের শিরোনাম <span
+                    <label class="text-sm font-bold text-slate-800" @keyup.debounce.700ms="fetchSuggestions()">প্রশ্নের শিরোনাম <span
                             class="text-red-600">*</span></label>
 
                     <div class="mt-2 flex gap-2 items-center">
                         <input type="text" name="title" required class="qa-input mt-2" x-model="title"
-                            @input.debounce.700ms="fetchSuggestions()" @keydown.escape.window="clearTitle()"
+                            @keyup.debounce.700ms="fetchSuggestions()" @keydown.escape.window="clearTitle()"
                             placeholder="সংক্ষেপে আপনার প্রশ্ন লিখুন...">
 
                         <button type="button" class="qa-btn qa-btn-outline px-4" x-show="title?.length" x-cloak

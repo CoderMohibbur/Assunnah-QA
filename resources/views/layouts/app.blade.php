@@ -85,6 +85,64 @@
 
     @endif
 
+
+
+    <div id="toast-root" class="fixed top-4 right-4 z-[9999] space-y-2"></div>
+
+    <script>
+        window.toast = function({
+            title = 'Notice',
+            message = '',
+            link = null
+        }) {
+            const root = document.getElementById('toast-root');
+            if (!root) return;
+
+            const el = document.createElement('div');
+            el.className = `
+            w-[340px] max-w-[92vw]
+            rounded-2xl border border-slate-200 bg-white shadow-lg
+            p-4 text-slate-900
+        `.trim();
+
+            el.innerHTML = `
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <div class="font-extrabold text-slate-900">${escapeHtml(title)}</div>
+                    <div class="mt-1 text-sm text-slate-600 leading-relaxed">${escapeHtml(message)}</div>
+                    ${link ? `<a href="${link}" class="mt-2 inline-flex text-sm font-bold text-cyan-700 hover:underline">
+                            প্রশ্নটি দেখুন →
+                        </a>` : ''}
+                </div>
+                <button type="button" class="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold hover:bg-slate-50">
+                    ✕
+                </button>
+            </div>
+        `;
+
+            const closeBtn = el.querySelector('button');
+            closeBtn.addEventListener('click', () => el.remove());
+
+            root.prepend(el);
+
+            // auto close after 6 sec
+            setTimeout(() => {
+                if (el && el.parentNode) el.remove();
+            }, 6000);
+        };
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+    </script>
+
+
+
     @include('partials.toast')
     @include('partials.footer')
 

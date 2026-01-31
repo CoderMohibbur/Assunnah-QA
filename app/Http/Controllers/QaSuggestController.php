@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
@@ -22,53 +23,82 @@ class QaSuggestController extends Controller
 
         $needle = mb_strtolower($title);
 
-        // ✅ cache (same query বারবার আসলে দ্রুত রেসপন্স)
         $cacheKey = 'qa_suggest:' . hash('sha1', $needle);
-        $ttl = 30; // seconds
+        $ttl = 30;
 
         $data = Cache::remember($cacheKey, $ttl, function () use ($needle) {
 
-            // ✅ Phase-1 fallback dataset (Phase-2: DB query দিয়ে replace হবে)
-            $seed = [
-                ['id'=>122,'title'=>'ইচ্ছা করে কেউ স্ত্রী সহবাস করে তার রোযা ভেঙে যায়...'],
-                ['id'=>121,'title'=>'মাথা ধোয়া না করে কুল্লি হয়, ...'],
-                ['id'=>120,'title'=>'আল্লাহর কালামের সাথে আদব ...'],
-                ['id'=>119,'title'=>'যাকাত কাদের উপর ফরজ...'],
-                ['id'=>118,'title'=>'সালাতের সময়সীমা...'],
-                ['id'=>117,'title'=>'রোযা অবস্থায় ইনজেকশন...'],
-                ['id'=>116,'title'=>'জানাজা নামাজের নিয়ম...'],
-                ['id'=>115,'title'=>'কুরআন তিলাওয়াতের আদব...'],
-                ['id'=>114,'title'=>'সফরে রোজা রাখা...'],
-            ];
-
             $threshold = (float) config('qa_suggest.threshold', 45);
-            $boost = (float) config('qa_suggest.substring_boost_score', 72);
-            $limit = (int) config('qa_suggest.limit', 5);
+            $boost     = (float) config('qa_suggest.substring_boost_score', 72);
+            $limit     = (int) config('qa_suggest.limit', 5);
+
+            /**
+             * ✅ Any-word matching:
+             * "রোজা ভুলে পানি" => ["রোজা","ভুলে","পানি"]
+             * 2+ length word only
+             */
+            $words = preg_split('/\s+/u', trim($needle)) ?: [];
+            $words = array_values(array_filter($words, fn ($w) => mb_strlen($w) >= 2));
+
+            // Safety fallback (shouldn't happen usually)
+            if (empty($words)) {
+                $words = [$needle];
+            }
+
+            // ✅ Candidates (DB): title OR title_bn match by ANY word
+            $candidates = Question::query()
+                ->select(['id', 'slug', 'title', 'title_bn', 'original_lang', 'created_at'])
+                ->whereNotNull('slug')
+                ->where(function ($q) use ($words) {
+                    foreach ($words as $w) {
+                        $escapedW = str_replace(['%', '_'], ['\%', '\_'], $w);
+
+                        $q->orWhere('title', 'like', "%{$escapedW}%")
+                          ->orWhere('title_bn', 'like', "%{$escapedW}%");
+                    }
+                })
+                ->latest()
+                ->limit(80)
+                ->get();
+
+            // ✅ DB fallback (dummy না): latest কিছু নিয়ে scoring
+            if ($candidates->isEmpty()) {
+                $candidates = Question::query()
+                    ->select(['id', 'slug', 'title', 'title_bn', 'original_lang', 'created_at'])
+                    ->whereNotNull('slug')
+                    ->latest()
+                    ->limit(80)
+                    ->get();
+            }
 
             $scored = [];
 
-            foreach ($seed as $q) {
-                $hay = mb_strtolower($q['title']);
+            foreach ($candidates as $q) {
+                // ✅ Display title preference
+                $displayTitle = $q->title_bn ?: $q->title;
 
-                // Similarity score
+                $hay = mb_strtolower((string) $displayTitle);
+
+                // Similarity score (needle vs full title)
                 similar_text($needle, $hay, $pct);
 
-                // substring bonus
-                if (str_contains($hay, $needle) || str_contains($needle, $hay)) {
-                    $pct = max($pct, $boost);
+                // ✅ substring bonus (any-word match / contains)
+                foreach ($words as $w) {
+                    if (mb_strlen($w) >= 2 && str_contains($hay, $w)) {
+                        $pct = max($pct, $boost);
+                        break;
+                    }
                 }
 
                 if ($pct >= $threshold) {
-                    $slug = 'q-' . $q['id'];
-
                     $scored[] = [
-                        'id'         => (int) $q['id'],
-                        'title'      => (string) $q['title'],
-                        'slug'       => $slug,
-                        'url'        => route('questions.show', ['slug' => $slug]),
-                        'score'      => round($pct, 2),              // 0-100
-                        'confidence' => round($pct / 100, 2),        // 0-1 ✅ (front এ এটা লাগে)
-                        'date'       => null,                        // later DB-driven হলে fill করবেন
+                        'id'         => (int) $q->id,
+                        'title'      => (string) $displayTitle,
+                        'slug'       => (string) $q->slug,
+                        'url'        => route('questions.show', ['slug' => $q->slug]),
+                        'score'      => round($pct, 2),
+                        'confidence' => round($pct / 100, 2),
+                        'date'       => optional($q->created_at)->toDateString(),
                     ];
                 }
             }

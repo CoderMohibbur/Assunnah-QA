@@ -7,6 +7,7 @@ use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\AskQuestionController;
 use App\Http\Controllers\PublicAnswerController;
 
+use App\Http\Controllers\Admin\UserRoleController;
 use App\Http\Controllers\PublicQuestionController;
 use App\Http\Controllers\Admin\AdminPageController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -170,5 +171,13 @@ Route::middleware([
             Route::put('/settings', [AdminSettingController::class, 'update'])
                 ->middleware('permission:qa.manage_settings')
                 ->name('settings.update');
+
+
+            // ✅ Users Role Assign
+            Route::get('/users', [UserRoleController::class, 'index'])->name('users.index');
+            Route::get('/users/create', [UserRoleController::class, 'create'])->name('users.create');
+            Route::post('/users', [UserRoleController::class, 'store'])->name('users.store');
+            Route::get('/users/{user}/edit', [UserRoleController::class, 'edit'])->name('users.edit');
+            Route::put('/users/{user}', [UserRoleController::class, 'update'])->name('users.update');
         });
 });
