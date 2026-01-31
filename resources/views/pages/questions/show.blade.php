@@ -70,7 +70,7 @@
 
                 {{-- ✅ Admin Only: full asker info --}}
                 @if ($canSeeAsker)
-                    <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
+                    <div class="mt-3 rounded-lg border border-gray-300 bg-white p-3 text-xs text-slate-700">
                         <div class="font-extrabold text-amber-800 mb-1">🔒 Admin Only — প্রশ্নকারী তথ্য</div>
 
                         <div>নাম: <span class="font-semibold">{{ $askerName ?? '—' }}</span></div>
