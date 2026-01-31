@@ -22,6 +22,12 @@ return new class extends Migration {
                 ->nullOnDelete();
 
             $table->longText('answer_html');
+
+            // ✅ Multi-language answers (future-ready)
+            $table->longText('answer_html_bn')->nullable();
+            $table->longText('answer_html_en')->nullable();
+            $table->longText('answer_html_ar')->nullable();
+
             $table->enum('status', ['draft', 'published'])->default('draft')->index();
             $table->timestamp('answered_at')->nullable()->index();
 

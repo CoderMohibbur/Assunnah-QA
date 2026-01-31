@@ -4,10 +4,10 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
-// Models (আপনার প্রজেক্টে থাকলে)
 use App\Models\Category;
 use App\Models\Question;
 use App\Models\Answer;
@@ -17,9 +17,14 @@ class DummyQaSeeder extends Seeder
 {
     public function run(): void
     {
+        // ✅ IMPORTANT: Seeder run এর সময় AnswerPublished event trigger OFF
+        Event::fake([
+            \App\Events\AnswerPublished::class,
+        ]);
+
         // already seeded? (simple guard)
         try {
-            if (class_exists(Question::class) && Question::query()->where('title', 'like', '%ডামি%')->exists()) {
+            if (class_exists(Question::class) && Question::query()->where('title', 'like', '%ডামি:%')->exists()) {
                 $this->command?->warn('Dummy QA already exists. Skipping.');
                 return;
             }
@@ -30,10 +35,15 @@ class DummyQaSeeder extends Seeder
         DB::beginTransaction();
 
         try {
-            // ✅ Create categories if empty (or ensure some exists)
+            // ✅ categories ensure
             $categories = $this->ensureCategories();
+            if (empty($categories)) {
+                $this->command?->warn('No categories available. DummyQaSeeder skipped.');
+                DB::rollBack();
+                return;
+            }
 
-            // ✅ Choose an admin/user id if exists (optional)
+            // ✅ admin/user id (optional)
             $adminId = null;
             try {
                 if (class_exists(User::class)) {
@@ -45,7 +55,7 @@ class DummyQaSeeder extends Seeder
 
             $now = Carbon::now();
 
-            // ✅ Dummy dataset (mix of published/pending/rejected)
+            // ✅ Core dummy dataset (mix)
             $dataset = [
                 [
                     'title' => 'ডামি: নামাজে সুরা ফাতিহা না পড়লে কি নামাজ হবে?',
@@ -56,8 +66,8 @@ class DummyQaSeeder extends Seeder
                     'status' => 'published',
                     'answer' => $this->answerHtml([
                         'সংক্ষেপে: অধিকাংশ আলেমের মতে প্রত্যেক রাকাতে সুরা ফাতিহা পড়া ওয়াজিব/রুকন।',
-                        'তবে জামাতে ইমামের পেছনে পড়া–না পড়া নিয়ে ফিকহি আলোচনা আছে। আপনার মাযহাব/স্থানীয় আলেমের নির্দেশনা অনুযায়ী আমল করুন।',
-                        'দলিল ও ব্যাখ্যা বিস্তারিতভাবে শিখতে ফিকহ/হাদিসের নির্ভরযোগ্য কিতাব দেখুন।',
+                        'জামাতে ইমামের পেছনে পড়া–না পড়া নিয়ে মতভেদ আছে। স্থানীয় আলেমের নির্দেশনা অনুযায়ী আমল করুন।',
+                        'বিশদ জানতে নির্ভরযোগ্য ফিকহ/হাদিস কিতাব দেখুন।',
                     ]),
                 ],
                 [
@@ -67,8 +77,8 @@ class DummyQaSeeder extends Seeder
                     ]),
                     'status' => 'published',
                     'answer' => $this->answerHtml([
-                        'ভুলে খাওয়া/পান করা হলে রোজা ভাঙে না (সাহিহ হাদিসের আলোকে)।',
-                        'মনে পড়ার সাথে সাথে থেমে যাবেন এবং রোজা পূর্ণ করবেন।',
+                        'ভুলে খাওয়া/পান করা হলে রোজা ভাঙে না—মনে পড়ার সাথে সাথে থেমে যাবেন।',
+                        'রোজা পূর্ণ করবেন এবং আল্লাহর কাছে ক্ষমা চাইবেন।',
                     ]),
                 ],
                 [
@@ -79,8 +89,8 @@ class DummyQaSeeder extends Seeder
                     ]),
                     'status' => 'published',
                     'answer' => $this->answerHtml([
-                        'নিসাব পরিমাণ সম্পদ হলে এবং এক চন্দ্র বছর পূর্ণ হলে যাকাত ফরজ হয় (বিস্তারিত সম্পদের ধরন অনুযায়ী ভিন্ন হতে পারে)।',
-                        'স্বর্ণ/রূপা/নগদ/ব্যবসায়িক পণ্য—সব মিলিয়ে হিসাব করা হয়।',
+                        'নিসাব পরিমাণ সম্পদ হলে এবং এক চন্দ্র বছর পূর্ণ হলে যাকাত ফরজ হয়।',
+                        'নগদ/স্বর্ণ/ব্যবসায়িক পণ্য—ধরনভেদে হিসাব ভিন্ন হতে পারে।',
                     ]),
                 ],
                 [
@@ -90,8 +100,8 @@ class DummyQaSeeder extends Seeder
                     ]),
                     'status' => 'published',
                     'answer' => $this->answerHtml([
-                        'ফরজ নামাজের পর, আযান–ইকামতের মাঝে, জুমার দিনের বিশেষ সময়, তাহাজ্জুদের শেষ রাত, সিজদার অবস্থায় ইত্যাদি সময়ে দোয়া করার ফজিলত এসেছে।',
-                        'দোয়ার আদব (হালাল রিজিক, তওবা, ইখলাস) বজায় রাখা জরুরি।',
+                        'তাহাজ্জুদের শেষ রাত, সিজদা, আযান–ইকামতের মাঝে, জুমার দিনের বিশেষ সময় ইত্যাদি।',
+                        'দোয়ার আদব: ইখলাস, হালাল রিজিক, তওবা, তাড়াহুড়ো না করা।',
                     ]),
                 ],
 
@@ -113,7 +123,7 @@ class DummyQaSeeder extends Seeder
                     'answer' => null,
                 ],
 
-                // rejected sample
+                // rejected
                 [
                     'title' => 'ডামি: (রিভিউ দরকার) একটি অসম্পূর্ণ/অস্পষ্ট প্রশ্ন',
                     'body'  => $this->bodyHtml([
@@ -124,9 +134,8 @@ class DummyQaSeeder extends Seeder
                 ],
             ];
 
-            // ✅ If you want more auto-generated items
-            $more = $this->generateMore(18); // total ~25 questions
-            $dataset = array_merge($dataset, $more);
+            // ✅ Add more auto-generated (total ~25)
+            $dataset = array_merge($dataset, $this->generateMore(18));
 
             foreach ($dataset as $i => $row) {
                 $category = $categories[$i % count($categories)];
@@ -136,11 +145,12 @@ class DummyQaSeeder extends Seeder
                 $askerEmail = (rand(0, 1) ? $this->randomEmail($askerName) : null);
 
                 $createdAt = $now->copy()->subDays(rand(1, 120))->subMinutes(rand(0, 600));
+
                 $publishedAt = ($row['status'] === 'published')
                     ? $createdAt->copy()->addHours(rand(2, 72))
                     : null;
 
-                $title = trim($row['title']);
+                $title = trim((string)($row['title'] ?? 'ডামি: (শিরোনাম নেই)'));
                 $titleHash = hash('sha256', Str::of($title)->lower()->squish()->toString());
 
                 // ✅ Create Question
@@ -163,13 +173,13 @@ class DummyQaSeeder extends Seeder
                 // ✅ slug set: q-{id}
                 $q->forceFill(['slug' => 'q-' . $q->id])->save();
 
-                // ✅ Create Answer for published ones
+                // ✅ Create Answer for published ones (Seeder should not notify because Event faked)
                 if ($row['status'] === 'published' && !empty($row['answer'])) {
                     Answer::create([
                         'question_id' => $q->id,
                         'answer_html' => (string)$row['answer'],
                         'status'      => 'published',
-                        'answered_by' => $adminId, // optional
+                        'answered_by' => $adminId,
                         'answered_at' => $publishedAt ?? $now,
                         'created_at'  => $publishedAt ?? $now,
                         'updated_at'  => $publishedAt ?? $now,
@@ -178,7 +188,7 @@ class DummyQaSeeder extends Seeder
             }
 
             DB::commit();
-            $this->command?->info('✅ DummyQaSeeder completed!');
+            $this->command?->info('✅ DummyQaSeeder completed! (events faked, no SMS/Email sent)');
         } catch (\Throwable $e) {
             DB::rollBack();
             throw $e;
@@ -187,42 +197,32 @@ class DummyQaSeeder extends Seeder
 
     private function ensureCategories(): array
     {
-        // If categories table empty, create some
         $defaults = [
-            ['name_bn' => 'আকিদা',      'slug' => 'aqidah',   'sort_order' => 1],
-            ['name_bn' => 'সালাত',      'slug' => 'salah',    'sort_order' => 2],
-            ['name_bn' => 'রোযা',      'slug' => 'sawm',     'sort_order' => 3],
-            ['name_bn' => 'যাকাত',     'slug' => 'zakat',    'sort_order' => 4],
-            ['name_bn' => 'হজ',        'slug' => 'hajj',     'sort_order' => 5],
-            ['name_bn' => 'আদব আখলাক', 'slug' => 'adab',     'sort_order' => 6],
+            ['name_bn' => 'আকিদা',      'slug' => 'aqidah',   'sort_order' => 1, 'is_active' => 1],
+            ['name_bn' => 'সালাত',      'slug' => 'salah',    'sort_order' => 2, 'is_active' => 1],
+            ['name_bn' => 'রোযা',       'slug' => 'sawm',     'sort_order' => 3, 'is_active' => 1],
+            ['name_bn' => 'যাকাত',      'slug' => 'zakat',    'sort_order' => 4, 'is_active' => 1],
+            ['name_bn' => 'হজ',         'slug' => 'hajj',     'sort_order' => 5, 'is_active' => 1],
+            ['name_bn' => 'আদব আখলাক',  'slug' => 'adab',     'sort_order' => 6, 'is_active' => 1],
         ];
 
-        // If you have Category model
-        if (class_exists(Category::class)) {
-            $hasAny = Category::query()->whereNull('deleted_at')->exists();
+        if (!class_exists(Category::class)) return [];
 
-            if (!$hasAny) {
-                foreach ($defaults as $d) {
-                    Category::create([
-                        'name_bn'    => $d['name_bn'],
-                        'slug'       => $d['slug'],
-                        'sort_order' => $d['sort_order'],
-                        'is_active'  => 1,
-                    ]);
-                }
+        $hasAny = Category::query()->whereNull('deleted_at')->exists();
+
+        if (!$hasAny) {
+            foreach ($defaults as $d) {
+                Category::create($d);
             }
-
-            return Category::query()
-                ->whereNull('deleted_at')
-                ->where('is_active', 1)
-                ->orderBy('sort_order')
-                ->orderBy('id')
-                ->get()
-                ->all();
         }
 
-        // fallback (shouldn't happen in your app)
-        return [];
+        return Category::query()
+            ->whereNull('deleted_at')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->all();
     }
 
     private function bodyHtml(array $lines): string
@@ -262,9 +262,10 @@ class DummyQaSeeder extends Seeder
         ];
 
         $out = [];
-        for ($i=0; $i<$n; $i++) {
+        for ($i = 0; $i < $n; $i++) {
             $t = $titles[$i % count($titles)];
-            $status = (rand(1, 100) <= 65) ? 'published' : ((rand(1, 100) <= 80) ? 'pending' : 'rejected');
+            $roll = rand(1, 100);
+            $status = ($roll <= 65) ? 'published' : (($roll <= 85) ? 'pending' : 'rejected');
 
             $out[] = [
                 'title'  => $t,

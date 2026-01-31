@@ -5,11 +5,17 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class QaPermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        // ✅ important: clear cached permissions
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        $guard = 'web';
+
         $perms = [
             'qa.view_admin',
             'qa.moderate_questions',
@@ -21,10 +27,17 @@ class QaPermissionSeeder extends Seeder
         ];
 
         foreach ($perms as $p) {
-            Permission::findOrCreate($p);
+            Permission::firstOrCreate([
+                'name'       => $p,
+                'guard_name' => $guard,
+            ]);
         }
 
-        $admin = Role::findOrCreate('Admin');
+        $admin = Role::firstOrCreate([
+            'name'       => 'Admin',
+            'guard_name' => $guard,
+        ]);
+
         $admin->syncPermissions($perms);
     }
 }

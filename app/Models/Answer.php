@@ -12,7 +12,12 @@ class Answer extends Model
     protected $fillable = [
         'question_id',
         'answered_by',
+
         'answer_html',
+        'answer_html_bn',
+        'answer_html_en',
+        'answer_html_ar',
+
         'status',
         'answered_at',
     ];
@@ -20,30 +25,14 @@ class Answer extends Model
     protected $casts = [
         'answered_at' => 'datetime',
     ];
-    protected $guarded = [];
 
+    // ✅ NOTE: guarded remove করুন, fillable থাকলেই যথেষ্ট
+    // protected $guarded = [];
 
     public function question()
     {
         return $this->belongsTo(Question::class);
     }
-
-
-    protected static function booted()
-    {
-        static::created(function ($answer) {
-            if ($answer->status === 'published') {
-                event(new \App\Events\AnswerPublished($answer));
-            }
-        });
-
-        static::updated(function ($answer) {
-            if ($answer->wasChanged('status') && $answer->status === 'published') {
-                event(new \App\Events\AnswerPublished($answer));
-            }
-        });
-    }
-
 
     public function answeredBy()
     {

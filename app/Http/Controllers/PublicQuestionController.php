@@ -38,6 +38,7 @@ class PublicQuestionController extends Controller
         // ✅ Only select necessary columns (PII only for admin)
         $baseCols = [
             'id',
+            'published_serial',   // ✅ IMPORTANT for serial-based ordering + display
             'category_id',
             'slug',
             'title',
@@ -82,13 +83,23 @@ class PublicQuestionController extends Controller
             });
         }
 
-        // ✅ sorting
+        // ✅ sorting (serial-based)
         if ($sort === 'views') {
-            $query->orderByDesc('view_count')->orderByDesc('published_at')->orderByDesc('id');
+            // views high -> low, then newest publish
+            $query->orderByDesc('view_count')
+                  ->orderByDesc('published_serial')
+                  ->orderByDesc('published_at')
+                  ->orderByDesc('id');
         } elseif ($sort === 'oldest') {
-            $query->orderBy('published_at')->orderBy('id');
+            // first published -> last published
+            $query->orderBy('published_serial')
+                  ->orderBy('published_at')
+                  ->orderBy('id');
         } else {
-            $query->orderByDesc('published_at')->orderByDesc('id');
+            // newest published -> oldest published
+            $query->orderByDesc('published_serial')
+                  ->orderByDesc('published_at')
+                  ->orderByDesc('id');
         }
 
         $questions = $query->paginate(12)->withQueryString();
@@ -119,8 +130,17 @@ class PublicQuestionController extends Controller
         $canSeeAsker = $this->canSeeAsker();
 
         $baseCols = [
-            'id','category_id','slug','title','body_html','status',
-            'published_at','view_count','created_at','updated_at',
+            'id',
+            'published_serial', // ✅ for display
+            'category_id',
+            'slug',
+            'title',
+            'body_html',
+            'status',
+            'published_at',
+            'view_count',
+            'created_at',
+            'updated_at',
         ];
         $askerCols = $canSeeAsker ? ['asker_name', 'asker_phone', 'asker_email'] : [];
 
@@ -144,7 +164,6 @@ class PublicQuestionController extends Controller
 
         $question->increment('view_count');
 
-        // view এ চাইলে ব্যবহার করবেন (এখন না হলেও ক্ষতি নাই)
         return view('pages.questions.show', compact('question', 'canSeeAsker'));
     }
 
@@ -162,8 +181,17 @@ class PublicQuestionController extends Controller
             ->firstOrFail();
 
         $baseCols = [
-            'id','category_id','slug','title','body_html','status',
-            'published_at','view_count','created_at','updated_at',
+            'id',
+            'published_serial', // ✅ for display + ordering
+            'category_id',
+            'slug',
+            'title',
+            'body_html',
+            'status',
+            'published_at',
+            'view_count',
+            'created_at',
+            'updated_at',
         ];
         $askerCols = $canSeeAsker ? ['asker_name', 'asker_phone', 'asker_email'] : [];
 
@@ -179,6 +207,8 @@ class PublicQuestionController extends Controller
             ->whereNull('deleted_at')
             ->where('status', 'published')
             ->where('category_id', $category->id)
+            // ✅ newest serial first (category page)
+            ->orderByDesc('published_serial')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->paginate(12)

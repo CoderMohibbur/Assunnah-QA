@@ -59,64 +59,84 @@ class AdminAnswerController extends Controller
      * Publish Answer
      * Route: POST /admin/questions/{question}/answer/publish
      */
-    public function publish(Question $question, Request $request)
-    {
-        // ✅ Guard: trashed hide
-        if ($question->deleted_at) {
-            abort(404);
-        }
-
-        // ✅ Guard: rejected হলে publish allow করবেন কি না?
-        if (($question->status ?? '') === 'rejected') {
-            return back()->withErrors([
-                'answer_html' => 'Rejected প্রশ্ন publish করা যাবে না। আগে approve/restore করুন।'
-            ]);
-        }
-
-        $request->validate([
-            'answer_html' => ['required', 'string', 'min:10'],
-        ]);
-
-        // ✅ Sanitize
-        $rawAnswer   = (string) $request->input('answer_html');
-        $cleanAnswer = $this->sanitizeHtml($rawAnswer);
-
-        $answerId = null;
-
-        DB::transaction(function () use ($question, $cleanAnswer, &$answerId) {
-
-            // 1) Upsert answer as published
-            $answer = Answer::updateOrCreate(
-                ['question_id' => $question->id],
-                [
-                    'answered_by' => auth()->id(),
-                    'answer_html' => $cleanAnswer,
-                    'status'      => 'published',
-                    'answered_at'  => now(),
-                ]
-            );
-
-            $answerId = $answer->id;
-
-            // 2) Publish question
-            $question->forceFill([
-                'status'       => 'published',
-                'published_at' => now(),
-            ])->save();
-        });
-
-        // ✅ Fire event after DB commit (stable)
-        DB::afterCommit(function () use ($answerId) {
-            $answer = Answer::with(['question'])->find($answerId);
-            if ($answer) {
-                event(new AnswerPublished($answer));
-            }
-        });
-
-        return redirect()
-            ->route('admin.questions.index', ['status' => 'published'])
-            ->with('success', 'Answer published ✅ Notification queued.');
+public function publish(Question $question, Request $request)
+{
+    // ✅ Guard: trashed hide
+    if ($question->deleted_at) {
+        abort(404);
     }
+
+    // ✅ Guard: rejected হলে publish allow করবেন কি না?
+    if (($question->status ?? '') === 'rejected') {
+        return back()->withErrors([
+            'answer_html' => 'Rejected প্রশ্ন publish করা যাবে না। আগে approve/restore করুন।'
+        ]);
+    }
+
+    $request->validate([
+        'answer_html' => ['required', 'string', 'min:10'],
+    ]);
+
+    // ✅ Sanitize
+    $rawAnswer   = (string) $request->input('answer_html');
+    $cleanAnswer = $this->sanitizeHtml($rawAnswer);
+
+    $answerId = null;
+
+    DB::transaction(function () use ($question, $cleanAnswer, &$answerId) {
+
+        // ✅ Lock question row (race-condition safe)
+        $question = Question::whereKey($question->id)->lockForUpdate()->firstOrFail();
+
+        // ✅ Assign publish serial only once (publish order)
+        if (empty($question->published_serial)) {
+            $nextSerial = (Question::whereNotNull('published_serial')
+                ->lockForUpdate()
+                ->max('published_serial') ?? 0) + 1;
+
+            $question->published_serial = $nextSerial;
+        }
+
+        // 1) Upsert answer as published
+        $answer = Answer::updateOrCreate(
+            ['question_id' => $question->id],
+            [
+                'answered_by'    => auth()->id(),
+                'answer_html'    => $cleanAnswer,
+
+                // ✅ future i18n: default bn copy
+                'answer_html_bn' => $cleanAnswer,
+                'answer_html_en' => null,
+                'answer_html_ar' => null,
+
+                'status'         => 'published',
+                'answered_at'    => now(),
+            ]
+        );
+
+        $answerId = $answer->id;
+
+        // 2) Publish question (with serial)
+        $question->forceFill([
+            'status'           => 'published',
+            'published_at'     => now(),
+            'published_serial' => $question->published_serial,
+        ])->save();
+    });
+
+    // ✅ Fire event after DB commit (stable) — only once
+    DB::afterCommit(function () use ($answerId) {
+        $answer = Answer::with(['question'])->find($answerId);
+        if ($answer) {
+            event(new AnswerPublished($answer));
+        }
+    });
+
+    return redirect()
+        ->route('admin.questions.index', ['status' => 'published'])
+        ->with('success', 'Answer published ✅ Notification queued.');
+}
+
 
     /**
      * Sanitize WYSIWYG HTML

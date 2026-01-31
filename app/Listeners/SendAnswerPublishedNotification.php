@@ -6,14 +6,10 @@ use App\Events\AnswerPublished;
 use App\Mail\AnswerPublishedMail;
 use App\Models\MessageLog;
 use App\Services\SmsService;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Mail;
 
-class SendAnswerPublishedNotification implements ShouldQueue
+class SendAnswerPublishedNotification
 {
-    public $tries = 3;
-    public $backoff = [60, 300, 900];
-
     public function __construct(protected SmsService $sms) {}
 
     public function handle(AnswerPublished $event): void
@@ -123,7 +119,7 @@ class SendAnswerPublishedNotification implements ShouldQueue
     private function buildSmsMessage($q, $answer): string
     {
         // আপনার slug format যেটাই হোক - এখানে safe link build করা হলো
-        $slug = $q->slug ?: ('q-'.$q->id);
+        $slug = $q->slug ?: ('q-' . $q->id);
         $url  = url('/questions/' . $slug);
 
         return "আপনার প্রশ্নের উত্তর প্রকাশ হয়েছে। দেখুন: {$url}";
