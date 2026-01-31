@@ -137,7 +137,15 @@
                         $slug = $row->slug ?: 'q-' . $row->id;
                         $shareUrl = route('questions.show', ['slug' => $slug]);
 
+                        // ✅ Published answer only (controller already filters)
                         $ans = $row->answer;
+
+                        // ✅ Answer ID (আপনি যেটা দেখাতে চাচ্ছেন)
+                        $answerId = $ans?->id;
+
+                        // ✅ Answer status (published vs processing)
+                        $isAnswerPublished = !empty($answerId);
+
                         $answeredBy = $ans?->answeredBy?->name ?? 'মডারেটর';
 
                         $dateValue =
@@ -151,7 +159,6 @@
                         $askerPhone = $row->asker_phone ?? null; // ✅ correct column
                         $askerEmail = $row->asker_email ?? null;
                         $askedAtLabel = $bnDateLabel($row->created_at);
-
                     @endphp
 
                     {{-- ✅ Clickable Card (NO overlay link) --}}
@@ -171,17 +178,43 @@
                                 <div class="mt-3 text-center">
                                     <div class="text-sm text-slate-600">প্রশ্ন:</div>
                                     <div class="text-3xl font-extrabold text-slate-900">
-                                        {{ $bn($row->published_serial ?? $row->id) }}</div>
+                                        {{ $bn($row->published_serial ?? $row->id) }}
+                                    </div>
+
+                                    {{-- ✅ Answer ID / Status --}}
+                                    @if ($isAnswerPublished)
+                                        <div class="mt-1 text-xs font-semibold text-emerald-700">
+                                            Answer ID: {{ $bn($answerId) }}
+                                        </div>
+                                    @else
+                                        <div class="mt-1 text-xs font-semibold text-amber-700">
+                                            Answer: Processing
+                                        </div>
+                                    @endif
                                 </div>
 
                                 <div class="mt-3 text-sm font-semibold text-slate-800"
                                     x-html="highlight(@js($row->title))"></div>
+
                                 <div class="mt-2 text-sm text-slate-600" x-html="highlight(@js($excerpt))">
                                 </div>
 
                                 <div class="mt-4 border-t pt-3 text-xs text-slate-500">
-                                    <div>উত্তর দিয়েছেন: <span
-                                            class="font-semibold text-slate-700">{{ $answeredBy }}</span></div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            উত্তর দিয়েছেন:
+                                            <span class="font-semibold text-slate-700">{{ $answeredBy }}</span>
+                                        </div>
+
+                                        {{-- ✅ Published/Processing badge --}}
+                                        @if ($isAnswerPublished)
+                                            <span class="qa-badge"
+                                                style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;">Published</span>
+                                        @else
+                                            <span class="qa-badge"
+                                                style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;">Processing</span>
+                                        @endif
+                                    </div>
                                     <div class="mt-1">তারিখ: {{ $dateLabel }}</div>
                                 </div>
 
@@ -224,20 +257,48 @@
                         {{-- LIST VIEW --}}
                         <template x-if="view==='list'">
                             <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                                <div class="sm:w-40 shrink-0">
+                                <div class="sm:w-44 shrink-0">
                                     <div class="flex items-baseline gap-2">
                                         <span class="text-xs text-slate-500">প্রশ্ন</span>
-                                        <span
-                                            class="text-2xl font-extrabold text-slate-900">{{ $bn($question->published_serial ?? $question->id) }}</span>
+
+                                        {{-- ✅ BUG FIX: $question -> $row --}}
+                                        <span class="text-2xl font-extrabold text-slate-900">
+                                            {{ $bn($row->published_serial ?? $row->id) }}
+                                        </span>
                                     </div>
+
                                     <div class="mt-1 text-xs text-slate-500">{{ $dateLabel }}</div>
+
+                                    {{-- ✅ Answer ID / Status --}}
+                                    <div class="mt-1 text-xs">
+                                        @if ($isAnswerPublished)
+                                            <span class="font-semibold text-emerald-700">Answer ID:
+                                                {{ $bn($answerId) }}</span>
+                                        @else
+                                            <span class="font-semibold text-amber-700">Answer: Processing</span>
+                                        @endif
+                                    </div>
                                 </div>
 
                                 <div class="flex-1">
                                     <div class="text-sm sm:text-base font-extrabold text-slate-900 leading-snug"
                                         x-html="highlight(@js($row->title))"></div>
+
                                     <div class="mt-1 text-sm text-slate-600 line-clamp-2"
                                         x-html="highlight(@js($snippet))"></div>
+
+                                    <div class="mt-2 text-xs text-slate-500 flex items-center gap-2">
+                                        <span>উত্তর দিয়েছেন: <span
+                                                class="font-semibold text-slate-700">{{ $answeredBy }}</span></span>
+
+                                        @if ($isAnswerPublished)
+                                            <span class="qa-badge"
+                                                style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;">Published</span>
+                                        @else
+                                            <span class="qa-badge"
+                                                style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;">Processing</span>
+                                        @endif
+                                    </div>
                                 </div>
 
                                 @if ($canSeeAsker)
@@ -278,6 +339,7 @@
                     </div>
                 @endforeach
             </div>
+
 
             {{-- Pagination --}}
             <div class="mt-6">

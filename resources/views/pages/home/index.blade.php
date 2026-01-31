@@ -245,7 +245,7 @@
                                 <div class="mt-3 text-center">
                                     <div class="text-sm text-slate-600">প্রশ্ন:</div>
                                     <div class="text-3xl font-extrabold text-slate-900">
-                                        {{ $bn($question->published_serial ?? $question->id) }}</div>
+                                        {{ $bn($row->published_serial ?? $row->id) }}</div>
                                 </div>
 
                                 <div class="mt-3 text-sm font-semibold text-slate-800"
@@ -303,7 +303,7 @@
                                     <div class="flex items-baseline gap-2">
                                         <span class="text-xs text-slate-500">প্রশ্ন</span>
                                         <span
-                                            class="text-2xl font-extrabold text-slate-900">{{ $bn($question->published_serial ?? $question->id) }}</span>
+                                            class="text-2xl font-extrabold text-slate-900">{{ $bn($row->published_serial ?? $row->id) }}</span>
                                     </div>
                                     <div class="mt-1 text-xs text-slate-500">{{ $dateLabel }}</div>
                                 </div>
