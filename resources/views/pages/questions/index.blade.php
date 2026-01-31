@@ -181,7 +181,7 @@
                                         {{ $bn($row->published_serial ?? $row->id) }}
                                     </div>
 
-                                    {{-- ✅ Answer ID / Status --}}
+                                    {{-- ✅ Answer ID / Status
                                     @if ($isAnswerPublished)
                                         <div class="mt-1 text-xs font-semibold text-emerald-700">
                                             Answer ID: {{ $bn($answerId) }}
@@ -190,7 +190,7 @@
                                         <div class="mt-1 text-xs font-semibold text-amber-700">
                                             Answer: Processing
                                         </div>
-                                    @endif
+                                    @endif --}}
                                 </div>
 
                                 <div class="mt-3 text-sm font-semibold text-slate-800"
@@ -270,14 +270,14 @@
                                     <div class="mt-1 text-xs text-slate-500">{{ $dateLabel }}</div>
 
                                     {{-- ✅ Answer ID / Status --}}
-                                    <div class="mt-1 text-xs">
+                                    {{-- <div class="mt-1 text-xs">
                                         @if ($isAnswerPublished)
                                             <span class="font-semibold text-emerald-700">Answer ID:
                                                 {{ $bn($answerId) }}</span>
                                         @else
                                             <span class="font-semibold text-amber-700">Answer: Processing</span>
                                         @endif
-                                    </div>
+                                    </div> --}}
                                 </div>
 
                                 <div class="flex-1">

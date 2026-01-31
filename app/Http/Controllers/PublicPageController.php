@@ -14,7 +14,7 @@ class PublicPageController extends Controller
     private function viewer()
     {
         // ✅ multi-guard support (web + admin)
-         return Auth::user();
+        return Auth::user();
     }
 
     private function canSeeAsker(): bool
@@ -93,6 +93,7 @@ class PublicPageController extends Controller
             ? $featuredBase->get()
             : $featuredBase->get([
                 'id',
+                'published_serial', // ✅ add
                 'category_id',
                 'slug',
                 'title',
@@ -127,7 +128,7 @@ class PublicPageController extends Controller
 
         $cards = $canSeeAsker
             ? $cardsBase->get()
-            : $cardsBase->get(['id', 'category_id', 'slug', 'title', 'body_html', 'published_at', 'created_at']);
+            : $cardsBase->get(['id', 'published_serial', 'category_id', 'slug', 'title', 'body_html', 'published_at', 'view_count', 'created_at']);
 
         return view('pages.home.index', compact(
             'homeFeatured',

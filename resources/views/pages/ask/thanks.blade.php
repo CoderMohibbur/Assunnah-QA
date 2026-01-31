@@ -9,7 +9,7 @@
 
         <div class="mt-2 text-sm text-slate-600">
             আপনার প্রশ্নটি এখন <span class="font-semibold text-slate-800">Pending</span> অবস্থায় আছে।
-            মডারেটর রিভিউ করে উত্তর প্রকাশ করলে SMS/Email নোটিফিকেশন যাবে (Phase-3)।
+            মডারেটর রিভিউ করে উত্তর প্রকাশ করলে SMS/Email নোটিফিকেশন যাবে।
         </div>
 
         <div class="mt-6 flex flex-col sm:flex-row gap-2 justify-center">
@@ -18,7 +18,7 @@
         </div>
 
         <div class="mt-4 text-xs text-slate-500">
-            রেফারেন্স আইডি: Q-{{ $id }}
+            {{-- রেফারেন্স আইডি: Q-{{ $id }} --}}
         </div>
     </div>
 @endsection

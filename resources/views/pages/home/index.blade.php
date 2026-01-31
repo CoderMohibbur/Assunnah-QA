@@ -211,7 +211,15 @@
                         $slug = $row->slug ?: 'q-' . $row->id;
                         $shareUrl = route('questions.show', ['slug' => $slug]);
 
+                        // ✅ Published answer only (controller already filters)
                         $ans = $row->answer;
+
+                        // ✅ Answer ID (আপনি যেটা দেখাতে চাচ্ছেন)
+                        $answerId = $ans?->id;
+
+                        // ✅ Published answer exists?
+                        $isAnswerPublished = !empty($answerId);
+
                         $answeredBy = $ans?->answeredBy?->name ?? 'মডারেটর';
                         $answeredAt =
                             $ans?->answered_at ?? ($ans?->updated_at ?? ($row->published_at ?? $row->created_at));
@@ -224,7 +232,6 @@
                         $askerMobile = $row->asker_phone ?? null;
                         $askerEmail = $row->asker_email ?? ($row->email ?? null);
                         $askedAtLabel = $bnDateLabel($row->created_at);
-
                     @endphp
 
                     {{-- ✅ Clickable Card (NO overlay link) --}}
@@ -232,7 +239,6 @@
                         role="link" tabindex="0" @click="window.location.href = @js($shareUrl)"
                         @keydown.enter="window.location.href = @js($shareUrl)"
                         @keydown.space.prevent="window.location.href = @js($shareUrl)">
-
 
                         {{-- GRID VIEW --}}
                         <template x-if="view==='grid'">
@@ -244,8 +250,22 @@
 
                                 <div class="mt-3 text-center">
                                     <div class="text-sm text-slate-600">প্রশ্ন:</div>
+
+                                    {{-- ✅ Serial prefer, fallback id --}}
                                     <div class="text-3xl font-extrabold text-slate-900">
-                                        {{ $bn($row->published_serial ?? $row->id) }}</div>
+                                        {{ $bn($row->published_serial ?? $row->id) }}
+                                    </div>
+
+                                    {{-- ✅ Answer ID / Processing --}}
+                                    {{-- @if ($isAnswerPublished)
+                                        <div class="mt-1 text-xs font-semibold text-emerald-700">
+                                            Answer ID: {{ $bn($answerId) }}
+                                        </div>
+                                    @else
+                                        <div class="mt-1 text-xs font-semibold text-amber-700">
+                                            Answer: Processing
+                                        </div>
+                                    @endif --}}
                                 </div>
 
                                 <div class="mt-3 text-sm font-semibold text-slate-800"
@@ -254,8 +274,21 @@
                                 </div>
 
                                 <div class="mt-4 border-t pt-3 text-xs text-slate-500">
-                                    <div>উত্তর দিয়েছেন: <span
-                                            class="font-semibold text-slate-700">{{ $answeredBy }}</span></div>
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            উত্তর দিয়েছেন:
+                                            <span class="font-semibold text-slate-700">{{ $answeredBy }}</span>
+                                        </div>
+
+                                        {{-- ✅ Published/Processing badge --}}
+                                        @if ($isAnswerPublished)
+                                            <span class="qa-badge"
+                                                style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;">Published</span>
+                                        @else
+                                            <span class="qa-badge"
+                                                style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;">Processing</span>
+                                        @endif
+                                    </div>
                                     <div class="mt-1">তারিখ: {{ $dateLabel }}</div>
                                 </div>
 
@@ -279,7 +312,6 @@
                                     </div>
                                 @endif
 
-
                                 <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
                                     <span class="qa-btn qa-btn-outline px-3 py-1">বিস্তারিত পড়ুন →</span>
 
@@ -299,13 +331,25 @@
                         {{-- LIST VIEW --}}
                         <template x-if="view==='list'">
                             <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                                <div class="sm:w-40 shrink-0">
+                                <div class="sm:w-44 shrink-0">
                                     <div class="flex items-baseline gap-2">
                                         <span class="text-xs text-slate-500">প্রশ্ন</span>
-                                        <span
-                                            class="text-2xl font-extrabold text-slate-900">{{ $bn($row->published_serial ?? $row->id) }}</span>
+                                        <span class="text-2xl font-extrabold text-slate-900">
+                                            {{ $bn($row->published_serial ?? $row->id) }}
+                                        </span>
                                     </div>
+
                                     <div class="mt-1 text-xs text-slate-500">{{ $dateLabel }}</div>
+
+                                    {{-- ✅ Answer ID / Processing --}}
+                                    {{-- <div class="mt-1 text-xs">
+                                        @if ($isAnswerPublished)
+                                            <span class="font-semibold text-emerald-700">Answer ID:
+                                                {{ $bn($answerId) }}</span>
+                                        @else
+                                            <span class="font-semibold text-amber-700">Answer: Processing</span>
+                                        @endif
+                                    </div> --}}
                                 </div>
 
                                 <div class="flex-1">
@@ -313,11 +357,24 @@
                                         x-html="highlight(@js($row->title))"></div>
                                     <div class="mt-1 text-sm text-slate-600 line-clamp-2"
                                         x-html="highlight(@js($snippet))"></div>
+
+                                    <div class="mt-2 text-xs text-slate-500 flex items-center gap-2">
+                                        <span>উত্তর দিয়েছেন: <span
+                                                class="font-semibold text-slate-700">{{ $answeredBy }}</span></span>
+
+                                        @if ($isAnswerPublished)
+                                            <span class="qa-badge"
+                                                style="background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;">Published</span>
+                                        @else
+                                            <span class="qa-badge"
+                                                style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;">Processing</span>
+                                        @endif
+                                    </div>
                                 </div>
 
                                 @if ($canSeeAsker)
                                     <div
-                                        class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
+                                        class="mt-3 sm:mt-0 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-slate-700">
                                         <div class="font-extrabold text-amber-800 mb-1">🔒 Admin Only — প্রশ্নকারী তথ্য
                                         </div>
 
@@ -353,6 +410,7 @@
                     </div>
                 @endforeach
             </div>
+
 
             <div class="mt-6 text-xs text-slate-500">
                 আরও প্রশ্ন দেখতে “সকল প্রশ্ন” পেজে যান।
