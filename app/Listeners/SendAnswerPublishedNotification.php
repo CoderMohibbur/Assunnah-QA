@@ -116,12 +116,19 @@ class SendAnswerPublishedNotification
         }
     }
 
+    // private function buildSmsMessage($q, $answer): string
+    // {
+    //     // আপনার slug format যেটাই হোক - এখানে safe link build করা হলো
+    //     $slug = $q->slug ?: ('q-' . $q->id);
+    //     $url  = url('/questions/' . $slug);
+
+    //     return "আপনার প্রশ্নের উত্তর প্রকাশ হয়েছে। দেখুন: {$url}";
+    // }
     private function buildSmsMessage($q, $answer): string
     {
-        // আপনার slug format যেটাই হোক - এখানে safe link build করা হলো
         $slug = $q->slug ?: ('q-' . $q->id);
         $url  = url('/questions/' . $slug);
 
-        return "আপনার প্রশ্নের উত্তর প্রকাশ হয়েছে। দেখুন: {$url}";
+        return "Assalamu Alaikum, your question to As-Sunnah Trust has been answered. View it here: {$url} JazakAllahu Khair.";
     }
 }
