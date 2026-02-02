@@ -47,18 +47,69 @@
     <div x-data="qaHomeState()" x-init="init()">
 
         {{-- Top Row: Slider + Featured Card --}}
-        <div class="grid grid-cols-12 gap-6">
+        {{-- ✅ Shared CSS (paste once with this block) --}}
+        <style>
+            /* ✅ make swiper take full height of parent */
+            .qa-swiper,
+            .qa-swiper .swiper-wrapper,
+            .qa-swiper .swiper-slide {
+                height: 100%;
+            }
+
+            /* ✅ Featured buttons layout */
+            .qa-featured-actions {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .qa-featured-actions .qa-btn {
+                border-radius: 0 !important;
+                padding: 8px 14px !important;
+                font-size: 13px !important;
+                min-height: 34px !important;
+                margin-right: -4px;
+            }
+
+            @media (min-width: 640px) {
+                .qa-featured-actions {
+                    min-height: 74px;
+                }
+
+                .qa-featured-btn-center {
+                    width: 8rem !important;
+                    margin-left: 0 !important;
+                    margin-right: auto !important;
+                    justify-content: center;
+                }
+
+                .qa-featured-btn-right {
+                    position: absolute;
+                    right: 0;
+                    bottom: 0;
+                    width: 8rem !important;
+                    justify-content: center;
+                }
+            }
+
+            @media (max-width: 639.98px) {
+
+                .qa-featured-btn-center,
+                .qa-featured-btn-right {
+                    width: 100%;
+                }
+            }
+        </style>
+
+        {{-- Top Row: Slider + Featured Card --}}
+        <div class="grid grid-cols-12 gap-6 items-stretch">
 
             {{-- Slider --}}
-            <div class="col-span-12 lg:col-span-8">
-                <div class="qa-card qa-card-hover p-0 overflow-hidden">
-                    <div class="bg-slate-900/5 p-4 border-b">
-                        <div class="font-bold text-slate-900">Featured প্রশ্ন</div>
-                        <div class="text-sm text-slate-600">সবচেয়ে গুরুত্বপূর্ণ/বেশি দেখা প্রশ্ন</div>
-                    </div>
-
-                    <div class="relative">
-                        <div class="swiper qa-swiper">
+            <div class="col-span-12 lg:col-span-8 h-full">
+                <div class="qa-card qa-card-hover p-0 overflow-hidden h-full">
+                    <div class="relative h-full">
+                        <div class="swiper qa-swiper h-full">
                             <div class="swiper-wrapper">
 
                                 @forelse (($featured ?? collect()) as $f)
@@ -75,7 +126,8 @@
                                     @endphp
 
                                     <div class="swiper-slide">
-                                        <div class="p-6 bg-[#0b4c7a] text-white min-h-[280px] flex items-center">
+                                        {{-- ✅ add min-h + h-full so slide can stretch to match right card --}}
+                                        <div class="p-6 bg-[#0b4c7a] text-white flex items-center min-h-[280px] h-full">
                                             <div class="w-full">
                                                 <div class="text-center text-sm opacity-90 mb-4">
                                                     প্রশ্ন: {{ $bn($f->id) }}
@@ -106,7 +158,7 @@
                                     </div>
                                 @empty
                                     <div class="swiper-slide">
-                                        <div class="p-6 bg-[#0b4c7a] text-white min-h-[280px] flex items-center">
+                                        <div class="p-6 bg-[#0b4c7a] text-white min-h-[280px] h-full flex items-center">
                                             <div class="w-full text-center">
                                                 <div class="text-xl font-extrabold">এখনো কোনো Published প্রশ্নোত্তর নেই
                                                 </div>
@@ -128,37 +180,97 @@
                             <div class="swiper-pagination"></div>
                         </div>
                     </div>
-
                 </div>
             </div>
 
             {{-- Featured Card --}}
-            <div class="col-span-12 lg:col-span-4">
-                <div class="qa-card qa-card-hover overflow-hidden p-0">
-                    <div class="h-40 bg-gradient-to-br from-slate-900 via-blue-700 to-cyan-400 relative">
+            <div class="col-span-12 lg:col-span-4 h-full">
+                <div class="qa-card qa-card-hover overflow-hidden p-0 h-full flex flex-col">
+                    @php
+                        // ✅ Page/Settings থেকে যেখান থেকে লোগো আনবেন সেটার সাথে মিলিয়ে নিন
+                        // উদাহরণ: $homeFeatured->logo / $homeFeatured->image / config('qa.logo')
+                        $cardLogo = $homeFeatured?->logo ?? ($homeFeatured?->image ?? null);
+
+                        // যদি স্টোরেজ পাথ হয়
+                        $cardLogoUrl = null;
+                        if ($cardLogo) {
+                            $cardLogoUrl = \Illuminate\Support\Str::startsWith($cardLogo, ['http://', 'https://'])
+                                ? $cardLogo
+                                : \Illuminate\Support\Facades\Storage::url($cardLogo);
+                        }
+                    @endphp
+
+                    <div class="h-40 bg-gradient-to-br from-slate-900 via-blue-700 to-red-900 relative shrink-0">
                         <div
                             class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_30%,white,transparent_55%)]">
                         </div>
-                        <div class="absolute bottom-4 left-4 right-4 text-white">
-                            <div class="text-xl font-extrabold leading-tight">
-                                এক নজরে<br>সকল প্রশ্নোত্তর
-                            </div>
+
+                        <div class="absolute inset-0 flex items-center justify-center px-4 text-white">
+                            @if ($cardLogoUrl)
+                                {{-- ✅ Logo Option --}}
+                                <img src="{{ $cardLogoUrl }}" alt="Logo"
+                                    class="h-10 sm:h-12 w-auto object-contain drop-shadow" loading="lazy">
+                            @else
+                                {{-- ✅ Fallback Title --}}
+                                <div class="text-xl font-extrabold leading-tight text-center">
+                                    এক নজরে<br>সকল প্রশ্নোত্তর
+                                </div>
+                            @endif
                         </div>
+
                     </div>
 
-                    <div class="p-5">
-                        <p class="text-sm text-slate-600 leading-relaxed">
-                            আপনার প্রশ্ন খুঁজে পান সহজে। সার্চ করুন অথবা ক্যাটাগরি অনুযায়ী ব্রাউজ করুন।
-                        </p>
+                    <div class="p-5 flex-1">
+                        @php
+                            $latestQ = $latest ?? null;
 
-                        <div class="mt-4 flex gap-2">
-                            <a href="{{ route('questions.index') }}" class="qa-btn qa-btn-primary flex-1">সকল প্রশ্ন</a>
-                            <a href="{{ route('answers.index') }}" class="qa-btn qa-btn-outline flex-1">প্রশ্নোত্তর</a>
+                            $latestSlug = $latestQ?->slug ?: ($latestQ ? 'q-' . $latestQ->id : null);
+                            $latestUrl = $latestSlug ? route('questions.show', ['slug' => $latestSlug]) : '#';
+
+                            $latestAns = $latestQ?->answer;
+                            $latestText = (string) ($latestAns?->answer_html ?? $latestQ?->body_html);
+                            $latestExcerpt = \Illuminate\Support\Str::limit(strip_tags($latestText), 110);
+
+                            $latestDate = $bnDateLabel(
+                                $latestAns?->answered_at ??
+                                    ($latestAns?->updated_at ?? ($latestQ?->published_at ?? $latestQ?->created_at)),
+                            );
+                        @endphp
+
+                        @if ($latestQ)
+                            <div class="text-xs text-slate-500 mb-2">
+                                সর্বশেষ প্রশ্ন • {{ $latestDate }}
+                            </div>
+
+                            <div class="text-sm font-extrabold text-slate-900 leading-snug">
+                                {{ $latestQ->title }}
+                            </div>
+
+                            <div class="mt-2 text-sm text-slate-600 leading-relaxed">
+                                {{ $latestExcerpt }}
+                            </div>
+                        @else
+                            <div class="text-sm text-slate-600 leading-relaxed">
+                                এখনো কোনো Published প্রশ্নোত্তর নেই।
+                            </div>
+                        @endif
+
+                        <div class="mt-4 qa-featured-actions">
+                            <a href="{{ $latestQ ? $latestUrl : route('questions.index') }}"
+                                class="qa-btn qa-btn-primary qa-featured-btn-center">
+                                বিস্তারিত...
+                            </a>
+
+                            <a href="{{ route('questions.index') }}" class="qa-btn qa-btn-primary qa-featured-btn-right">
+                                প্রশ্নোত্তর
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
+
         </div>
+
 
         {{-- Search Bar --}}
         <div class="mt-6">

@@ -130,11 +130,42 @@ class PublicPageController extends Controller
             ? $cardsBase->get()
             : $cardsBase->get(['id', 'published_serial', 'category_id', 'slug', 'title', 'body_html', 'published_at', 'view_count', 'created_at']);
 
+        $latestBase = Question::query()
+            ->with([
+                'category:id,name_bn,slug',
+                'answer' => function ($q) {
+                    $q->whereNull('deleted_at')->where('status', 'published');
+                },
+                'answer.answeredBy:id,name',
+            ])
+            ->whereNull('deleted_at')
+            ->where('status', 'published')
+            ->whereHas('answer', function ($q) {
+                $q->whereNull('deleted_at')->where('status', 'published');
+            })
+            ->orderByDesc('published_at')
+            ->orderByDesc('id');
+
+        $latest = $canSeeAsker
+            ? $latestBase->first()
+            : $latestBase->first([
+                'id',
+                'published_serial',
+                'category_id',
+                'slug',
+                'title',
+                'body_html',
+                'published_at',
+                'view_count',
+                'created_at',
+            ]);
         return view('pages.home.index', compact(
             'homeFeatured',
             'categories',
             'featured',
             'cards',
+            'latest',
+
             'q',
             'canSeeAsker'
         ));
