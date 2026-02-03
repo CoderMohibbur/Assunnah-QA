@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Question;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use App\Http\Controllers\Controller;
 
 class AdminQuestionController extends Controller
 {
@@ -32,7 +34,7 @@ class AdminQuestionController extends Controller
                         ->orWhere('asker_email', 'like', "%{$q}%");
                 });
             })
-            ->when(!empty($cat), fn ($query) => $query->where('category_id', $cat))
+            ->when(!empty($cat), fn($query) => $query->where('category_id', $cat))
             ->orderByDesc('id');
 
         $questions = $questionsQuery
@@ -51,18 +53,45 @@ class AdminQuestionController extends Controller
         return view('admin.questions.index', compact('questions', 'status', 'q', 'cat', 'counts'));
     }
 
+
+    public function update(Request $request, Question $question)
+    {
+        if ($question->deleted_at) abort(404);
+
+        $data = $request->validate([
+            'title'       => ['required', 'string', 'max:255'],
+            'body_html'   => ['nullable', 'string', 'max:200000'], // large html
+            'category_id' => [
+                'required',
+                'integer',
+                Rule::exists('categories', 'id')->whereNull('deleted_at'),
+            ],
+        ]);
+
+        $question->forceFill([
+            'title'       => trim($data['title']),
+            'body_html'   => $data['body_html'] ?? null,
+            'category_id' => (int) $data['category_id'],
+        ])->save();
+
+        return back()->with('success', 'Question updated ✅');
+    }
+
     public function show(Question $question)
     {
-        // ✅ safety: prevent viewing trashed in admin list flow
-        if ($question->deleted_at) {
-            abort(404);
-        }
+        if ($question->deleted_at) abort(404);
 
         $question->load(['category', 'answer', 'answer.answeredBy']);
 
-        return view('admin.questions.show', compact('question'));
-    }
+        $categories = Category::query()
+            ->whereNull('deleted_at')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'name_bn']);
 
+        return view('admin.questions.show', compact('question', 'categories'));
+    }
     public function approve(Question $question)
     {
         if ($question->deleted_at) {

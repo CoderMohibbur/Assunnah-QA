@@ -83,7 +83,7 @@
   </div>
 
   @php
-    // ✅ Notification logs snapshot (latest 10)
+    // Notification logs snapshot (latest 10)
     $logs = \App\Models\MessageLog::query()
       ->where('question_id', $question->id)
       ->latest()
@@ -95,7 +95,7 @@
     $lastErr  = (string)($question->notify_last_error ?? '');
   @endphp
 
-  {{-- ✅ Notification Status Panel --}}
+  {{-- Notification Status Panel --}}
   <div class="mt-4 qa-card">
     <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
       <div>
@@ -203,7 +203,7 @@
   </div>
 
   <div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
-    {{-- Left: Question Details --}}
+    {{-- Left: Question Details + Edit --}}
     <div class="lg:col-span-5">
       <div class="qa-card">
         <h2 class="font-extrabold text-slate-900">Question Details</h2>
@@ -226,10 +226,59 @@
         <div class="mt-4">
           <div class="text-xs text-slate-500">Question Body</div>
           <div class="mt-2 prose max-w-none qa-card bg-white">
-            {{-- NOTE: body_html should be sanitized at save time (Phase-2). --}}
             {!! $question->body_html !!}
           </div>
         </div>
+      </div>
+
+      {{-- ✅ Edit Question (Admin) --}}
+      <div class="qa-card mt-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="font-extrabold text-slate-900">Edit Question (Admin)</h2>
+            <p class="text-sm text-slate-600 mt-1">ভুল থাকলে শিরোনাম/বডি ঠিক করুন এবং category পরিবর্তন করুন।</p>
+          </div>
+        </div>
+
+        {{-- NOTE: এই ফর্ম আলাদা করে “Save Question Changes” দিবে --}}
+        <form id="qaQuestionForm" method="POST" action="{{ route('admin.questions.update', $question) }}" class="mt-4">
+          @csrf
+          @method('PUT')
+
+          <label class="text-xs text-slate-500">Title</label>
+          <input id="qa_question_title"
+                 name="title"
+                 value="{{ old('title', $question->title) }}"
+                 class="qa-input w-full"
+                 placeholder="প্রশ্নের শিরোনাম"/>
+
+          <div class="mt-3">
+            <label class="text-xs text-slate-500">Category</label>
+            <select id="qa_question_category" name="category_id" class="qa-input w-full">
+              @foreach(($categories ?? collect()) as $c)
+                <option value="{{ $c->id }}" @selected((int)old('category_id', $question->category_id) === (int)$c->id)>
+                  {{ $c->name_bn }}
+                </option>
+              @endforeach
+            </select>
+          </div>
+
+          <div class="mt-3">
+            <label class="text-xs text-slate-500">Question Body (HTML)</label>
+            <textarea id="question_body_html"
+                      name="body_html"
+                      class="qa-input w-full min-h-[220px]"
+                      placeholder="প্রশ্নের বিস্তারিত...">{{ old('body_html', $question->body_html ?? '') }}</textarea>
+          </div>
+
+          <div class="mt-4">
+            <button type="submit" class="qa-btn qa-btn-primary">Save Question Changes</button>
+          </div>
+
+          <div class="mt-3 text-xs text-slate-500">
+            টিপ: Answer Publish/Draft চাপলেও এই Title/Category/Body একসাথে update হবে (নিচের sync system এর কারণে)।
+          </div>
+        </form>
       </div>
     </div>
 
@@ -257,8 +306,13 @@
           @endif
         </div>
 
-        <form method="POST" action="{{ route('admin.answers.draft', $question) }}" class="mt-4">
+        <form id="qaAnswerForm" method="POST" action="{{ route('admin.answers.draft', $question) }}" class="mt-4">
           @csrf
+
+          {{-- ✅ Hidden sync fields (Answer publish/draft এ Question update যাবে) --}}
+          <input type="hidden" name="title" id="qa_sync_title">
+          <input type="hidden" name="category_id" id="qa_sync_category_id">
+          <input type="hidden" name="body_html" id="qa_sync_body_html">
 
           <label class="text-xs text-slate-500">Answer (HTML)</label>
           <textarea
@@ -309,31 +363,89 @@
 @endsection
 
 @push('scripts')
-  {{-- Jodit Editor (CDN) --}}
   <script src="https://cdn.jsdelivr.net/npm/jodit@4.1.16/es2021/jodit.min.js"></script>
   <script>
     (function () {
-      var el = document.getElementById('answer_html');
-      if (!el) return;
+      var editors = { answer: null, question: null };
 
-      // Prevent double init
-      if (el.dataset.inited === "1") return;
-      el.dataset.inited = "1";
+      function initJodit(id, height) {
+        var el = document.getElementById(id);
+        if (!el) return null;
+        if (el.dataset.inited === "1") return null;
+        el.dataset.inited = "1";
 
-      new Jodit(el, {
-        height: 320,
-        toolbarAdaptive: false,
-        spellcheck: true,
-        buttons: [
-          'bold','italic','underline','|',
-          'ul','ol','|',
-          'paragraph','fontsize','|',
-          'link','|',
-          'hr','|',
-          'undo','redo','|',
-          'source'
-        ]
-      });
+        return new Jodit(el, {
+          height: height || 320,
+          toolbarAdaptive: false,
+          toolbarSticky: false,
+          spellcheck: true,
+          buttons: [
+            'bold','italic','underline','strikethrough','eraser','|',
+            'ul','ol','outdent','indent','|',
+            'font','fontsize','brush','paragraph','|',
+            'align','|',
+            'link','image','video','table','|',
+            'superscript','subscript','|',
+            'hr','copyformat','|',
+            'undo','redo','|',
+            'source','fullsize'
+          ],
+          uploader: { insertImageAsBase64URI: true }
+        });
+      }
+
+      editors.answer = initJodit('answer_html', 360);
+      editors.question = initJodit('question_body_html', 300);
+
+      function safeEditorValue(editor, fallbackId) {
+        try {
+          if (editor && typeof editor.value !== 'undefined') return editor.value || '';
+        } catch (e) {}
+        var ta = document.getElementById(fallbackId);
+        return ta ? (ta.value || '') : '';
+      }
+
+      // ✅ Copy Question form fields -> hidden inputs inside Answer form
+      function syncQuestionToAnswerHidden() {
+        var titleEl = document.getElementById('qa_question_title');
+        var catEl   = document.getElementById('qa_question_category');
+
+        var hTitle = document.getElementById('qa_sync_title');
+        var hCat   = document.getElementById('qa_sync_category_id');
+        var hBody  = document.getElementById('qa_sync_body_html');
+
+        if (hTitle && titleEl) hTitle.value = (titleEl.value || '').trim();
+        if (hCat && catEl) hCat.value = (catEl.value || '').trim();
+
+        var qHtml = safeEditorValue(editors.question, 'question_body_html');
+        if (hBody) hBody.value = qHtml;
+      }
+
+      // ✅ Ensure textarea values are latest before submit (Jodit sometimes needs this)
+      function syncTextareasBeforeSubmit() {
+        var aTa = document.getElementById('answer_html');
+        if (aTa) aTa.value = safeEditorValue(editors.answer, 'answer_html');
+
+        var qTa = document.getElementById('question_body_html');
+        if (qTa) qTa.value = safeEditorValue(editors.question, 'question_body_html');
+      }
+
+      // ✅ Answer form submit: sync hidden + sync textareas
+      var answerForm = document.getElementById('qaAnswerForm');
+      if (answerForm) {
+        answerForm.addEventListener('submit', function () {
+          syncTextareasBeforeSubmit();
+          syncQuestionToAnswerHidden();
+        }, true);
+      }
+
+      // ✅ Question-only save form submit: sync question textarea
+      var questionForm = document.getElementById('qaQuestionForm');
+      if (questionForm) {
+        questionForm.addEventListener('submit', function () {
+          syncTextareasBeforeSubmit();
+        }, true);
+      }
     })();
   </script>
 @endpush

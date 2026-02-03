@@ -96,6 +96,10 @@ Route::middleware([
             Route::get('/questions/{question}', [AdminQuestionController::class, 'show'])
                 ->name('questions.show');
 
+            Route::put('/questions/{question}', [AdminQuestionController::class, 'update'])
+                ->name('questions.update');
+
+
             Route::post('/questions/{question}/approve', [AdminQuestionController::class, 'approve'])
                 ->middleware('permission:qa.moderate_questions')
                 ->name('questions.approve');

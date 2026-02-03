@@ -16,7 +16,7 @@ class AnswerPublishedMail extends Mailable
 
     public function build()
     {
-        return $this->subject('আপনার প্রশ্নের উত্তর প্রকাশ হয়েছে')
+        return $this->subject('Your question has been answered — As-Sunnah Trust QA')
             ->view('emails.answer_published')
             ->with([
                 'question' => $this->question,

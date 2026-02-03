@@ -229,7 +229,7 @@
 
                             $latestAns = $latestQ?->answer;
                             $latestText = (string) ($latestAns?->answer_html ?? $latestQ?->body_html);
-                            $latestExcerpt = \Illuminate\Support\Str::limit(strip_tags($latestText), 110);
+                            $latestExcerpt = \Illuminate\Support\Str::limit(strip_tags($latestText), 220);
 
                             $latestDate = $bnDateLabel(
                                 $latestAns?->answered_at ??
@@ -243,11 +243,11 @@
                             </div>
 
                             <div class="text-sm font-extrabold text-slate-900 leading-snug">
-                                {{ $latestQ->title }}
+                                {!! $latestQ->title !!}
                             </div>
 
                             <div class="mt-2 text-sm text-slate-600 leading-relaxed">
-                                {{ $latestExcerpt }}
+                                {!! $latestExcerpt !!}
                             </div>
                         @else
                             <div class="text-sm text-slate-600 leading-relaxed">
@@ -337,14 +337,22 @@
                             $ans?->answered_at ?? ($ans?->updated_at ?? ($row->published_at ?? $row->created_at));
                         $dateLabel = $bnDateLabel($answeredAt);
 
-                        $excerpt = Str::limit(strip_tags((string) ($ans?->answer_html ?? $row->body_html)), 110);
-                        $snippet = $excerpt;
+                        // ✅ Helper: HTML -> plain text + decode entities (fixes &#2439;...)
+                        $plainText = function ($html) {
+                            $t = strip_tags((string) ($html ?? ''));
+                            return html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                        };
+
+                        // ✅ Use decoded plain text for excerpt/snippet (safe for x-html highlight)
+                        $excerpt = Str::limit($plainText($ans?->answer_html ?? $row->body_html), 110);
+                        $snippet = Str::limit($plainText($row->body_html), 130);
 
                         $askerName = $row->asker_name ?? ($row->name ?? null);
                         $askerMobile = $row->asker_phone ?? null;
                         $askerEmail = $row->asker_email ?? ($row->email ?? null);
                         $askedAtLabel = $bnDateLabel($row->created_at);
                     @endphp
+
 
                     {{-- ✅ Clickable Card (NO overlay link) --}}
                     <div class="qa-card qa-card-hover cursor-pointer" :class="view === 'list' ? 'p-4' : ''"

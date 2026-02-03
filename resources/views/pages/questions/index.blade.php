@@ -133,7 +133,6 @@
 
                 @foreach ($questions as $row)
                     @php
-                        // ✅ MUST: slug + shareUrl
                         $slug = $row->slug ?: 'q-' . $row->id;
                         $shareUrl = route('questions.show', ['slug' => $slug]);
 
@@ -143,21 +142,27 @@
                         // ✅ Answer ID (আপনি যেটা দেখাতে চাচ্ছেন)
                         $answerId = $ans?->id;
 
-                        // ✅ Answer status (published vs processing)
+                        // ✅ Published answer exists?
                         $isAnswerPublished = !empty($answerId);
 
                         $answeredBy = $ans?->answeredBy?->name ?? 'মডারেটর';
-
-                        $dateValue =
+                        $answeredAt =
                             $ans?->answered_at ?? ($ans?->updated_at ?? ($row->published_at ?? $row->created_at));
-                        $dateLabel = $bnDateLabel($dateValue);
+                        $dateLabel = $bnDateLabel($answeredAt);
 
-                        $excerpt = Str::limit(strip_tags((string) ($ans?->answer_html ?? $row->body_html)), 120);
-                        $snippet = Str::limit(strip_tags((string) $row->body_html), 130);
+                        // ✅ Helper: HTML -> plain text + decode entities (fixes &#2439;...)
+                        $plainText = function ($html) {
+                            $t = strip_tags((string) ($html ?? ''));
+                            return html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                        };
 
-                        $askerName = $row->asker_name ?? null;
-                        $askerPhone = $row->asker_phone ?? null; // ✅ correct column
-                        $askerEmail = $row->asker_email ?? null;
+                        // ✅ Use decoded plain text for excerpt/snippet (safe for x-html highlight)
+                        $excerpt = Str::limit($plainText($ans?->answer_html ?? $row->body_html), 110);
+                        $snippet = Str::limit($plainText($row->body_html), 130);
+
+                        $askerName = $row->asker_name ?? ($row->name ?? null);
+                        $askerMobile = $row->asker_phone ?? null;
+                        $askerEmail = $row->asker_email ?? ($row->email ?? null);
                         $askedAtLabel = $bnDateLabel($row->created_at);
                     @endphp
 
@@ -219,8 +224,7 @@
                                 </div>
 
                                 @if ($canSeeAsker)
-                                    <div
-                                        class="mt-3 rounded-lg border border-gray-300 bg-white p-3 text-xs text-slate-700">
+                                    <div class="mt-3 rounded-lg border border-gray-300 bg-white p-3 text-xs text-slate-700">
                                         <div class="font-extrabold text-amber-800 mb-1">🔒 Admin Only — প্রশ্নকারী তথ্য
                                         </div>
 
