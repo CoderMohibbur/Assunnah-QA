@@ -93,7 +93,7 @@
       <div class="mt-3 space-y-2 text-sm">
         <a class="block hover:underline" href="{{ route('home') }}">হোম</a>
         <a class="block hover:underline" href="{{ route('questions.index') }}">সকল প্রশ্ন</a>
-        <a class="block hover:underline" href="{{ route('answers.index') }}">প্রশ্নোত্তর</a>
+        {{-- <a class="block hover:underline" href="{{ route('answers.index') }}">প্রশ্নোত্তর</a> --}}
         <a class="block hover:underline" href="{{ route('ask') }}">প্রশ্ন করুন</a>
       </div>
     </div>
@@ -150,7 +150,7 @@
         <div class="mt-2 grid grid-cols-2 gap-2 text-sm">
           <a class="qa-btn qa-btn-outline" href="{{ route('home') }}" @click="$store.drawer.closeSidebar()">হোম</a>
           <a class="qa-btn qa-btn-outline" href="{{ route('questions.index') }}" @click="$store.drawer.closeSidebar()">প্রশ্ন</a>
-          <a class="qa-btn qa-btn-outline" href="{{ route('answers.index') }}" @click="$store.drawer.closeSidebar()">উত্তর</a>
+          {{-- <a class="qa-btn qa-btn-outline" href="{{ route('answers.index') }}" @click="$store.drawer.closeSidebar()">উত্তর</a> --}}
           <a class="qa-btn qa-btn-primary" href="{{ route('ask') }}" @click="$store.drawer.closeSidebar()">প্রশ্ন করুন</a>
         </div>
       </div>

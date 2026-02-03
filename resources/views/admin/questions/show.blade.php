@@ -47,11 +47,11 @@
           </form>
         @endif
 
-        <a class="qa-btn qa-btn-outline"
+        {{-- <a class="qa-btn qa-btn-outline"
            href="{{ route('questions.show', $question->slug ?? ('q-'.$question->id) ) }}"
            target="_blank" rel="noopener">
           Public View ↗
-        </a>
+        </a> --}}
       </div>
     </div>
   </div>
@@ -196,9 +196,9 @@
         </table>
       </div>
 
-      <div class="mt-3 text-xs text-slate-500">
+      {{-- <div class="mt-3 text-xs text-slate-500">
         টিপ: Mail test এর জন্য <span class="font-semibold">MAIL_MAILER=log</span> দিলে <span class="font-semibold">storage/logs/laravel.log</span> এ দেখা যাবে।
-      </div>
+      </div> --}}
     </div>
   </div>
 
@@ -275,9 +275,9 @@
             <button type="submit" class="qa-btn qa-btn-primary">Save Question Changes</button>
           </div>
 
-          <div class="mt-3 text-xs text-slate-500">
+          {{-- <div class="mt-3 text-xs text-slate-500">
             টিপ: Answer Publish/Draft চাপলেও এই Title/Category/Body একসাথে update হবে (নিচের sync system এর কারণে)।
-          </div>
+          </div> --}}
         </form>
       </div>
     </div>

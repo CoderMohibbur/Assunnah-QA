@@ -13,7 +13,7 @@ class Answer extends Model
         'question_id',
         'answered_by',
 
-        'answer_html',
+        'answer_html',      // legacy / fallback
         'answer_html_bn',
         'answer_html_en',
         'answer_html_ar',
@@ -26,8 +26,35 @@ class Answer extends Model
         'answered_at' => 'datetime',
     ];
 
-    // ✅ NOTE: guarded remove করুন, fillable থাকলেই যথেষ্ট
-    // protected $guarded = [];
+    /**
+     * Locale অনুযায়ী উত্তর (HTML) রিটার্ন করবে।
+     *
+     * Fallback order:
+     *  - bn: bn -> legacy answer_html -> en -> ar
+     *  - en: en -> bn -> legacy -> ar
+     *  - ar: ar -> bn -> legacy -> en
+     */
+    public function bodyHtmlForLocale(?string $locale = null): ?string
+    {
+        $locale = $locale ?: app()->getLocale();
+
+        return match ($locale) {
+            'en' => $this->answer_html_en
+                ?: $this->answer_html_bn
+                ?: $this->answer_html
+                ?: $this->answer_html_ar,
+
+            'ar' => $this->answer_html_ar
+                ?: $this->answer_html_bn
+                ?: $this->answer_html
+                ?: $this->answer_html_en,
+
+            default => $this->answer_html_bn
+                ?: $this->answer_html
+                ?: $this->answer_html_en
+                ?: $this->answer_html_ar,
+        };
+    }
 
     public function question()
     {
