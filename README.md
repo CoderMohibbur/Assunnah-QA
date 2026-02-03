@@ -49,6 +49,8 @@ Fresh migrate করে তারপর শুধু dummy:
 Windows Git Bash/Terminal এ:
 
 /usr/local/lsws/lsphp82/bin/php artisan migrate:fresh
+/usr/local/lsws/lsphp82/bin/php artisan optimize:clear
+/usr/local/lsws/lsphp82/bin/php artisan optimize
 /usr/local/lsws/lsphp82/bin/php artisan db:seed --class=Database\\Seeders\\CategorySeeder
 /usr/local/lsws/lsphp82/bin/php artisan db:seed --class=Database\\Seeders\\QaPermissionSeeder
 /usr/local/lsws/lsphp82/bin/php artisan db:seed --class=Database\\Seeders\\DummyQaSeeder
