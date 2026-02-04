@@ -87,19 +87,19 @@ class PublicQuestionController extends Controller
         if ($sort === 'views') {
             // views high -> low, then newest publish
             $query->orderByDesc('view_count')
-                  ->orderByDesc('published_serial')
-                  ->orderByDesc('published_at')
-                  ->orderByDesc('id');
+                ->orderByDesc('published_serial')
+                ->orderByDesc('published_at')
+                ->orderByDesc('id');
         } elseif ($sort === 'oldest') {
             // first published -> last published
             $query->orderBy('published_serial')
-                  ->orderBy('published_at')
-                  ->orderBy('id');
+                ->orderBy('published_at')
+                ->orderBy('id');
         } else {
             // newest published -> oldest published
             $query->orderByDesc('published_serial')
-                  ->orderByDesc('published_at')
-                  ->orderByDesc('id');
+                ->orderByDesc('published_at')
+                ->orderByDesc('id');
         }
 
         $questions = $query->paginate(12)->withQueryString();
@@ -157,10 +157,16 @@ class PublicQuestionController extends Controller
             ->where('status', 'published');
 
         if (preg_match('/^q-(\d+)$/', $slug, $m)) {
-            $question = $query->where('id', (int) $m[1])->firstOrFail();
+            $num = (int) $m[1];
+
+            $question = $query->where(function ($qq) use ($slug, $num) {
+                $qq->where('slug', $slug)
+                    ->orWhere('published_serial', $num);
+            })->firstOrFail();
         } else {
             $question = $query->where('slug', $slug)->firstOrFail();
         }
+
 
         $question->increment('view_count');
 

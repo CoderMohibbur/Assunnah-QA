@@ -35,16 +35,15 @@
         </nav>
 
         {{-- Right / Desktop --}}
-        {{-- Right / Desktop --}}
         <div class="hidden md:flex items-center gap-2">
             @auth
                 @can('qa.view_admin')
-                    <a href="{{ route('admin.dashboard') }}" class="qa-btn qa-btn-outline">Admin</a>
+                    <a href="{{ route('admin.dashboard') }}" class="qa-btn qa-btn-outline">
+                        Admin
+                    </a>
                 @endcan
 
-                {{-- <a href="{{ route('dashboard') }}" class="qa-btn qa-btn-outline">Dashboard</a> --}}
-
-                {{-- ✅ Sign out --}}
+                {{-- Sign out --}}
                 <form method="POST" action="{{ route('logout') }}" class="inline">
                     @csrf
                     <button type="submit" class="qa-btn qa-btn-outline">
@@ -52,9 +51,18 @@
                     </button>
                 </form>
             @else
-                <a href="{{ route('login') }}" class="qa-btn qa-btn-outline">Log In</a>
+                {{-- Log in --}}
+                <a href="{{ route('login') }}" class="qa-btn qa-btn-outline">
+                    Log In
+                </a>
+
+                {{-- Register --}}
+                <a href="{{ route('register') }}" class="qa-btn qa-btn-primary">
+                    Register
+                </a>
             @endauth
         </div>
+
 
 
         {{-- Mobile button --}}
@@ -95,12 +103,12 @@
             <div class="pt-2 space-y-2">
                 @auth
                     @can('qa.view_admin')
-                        <a href="{{ route('admin.dashboard') }}" class="qa-btn qa-btn-outline w-full">Admin</a>
+                        <a href="{{ route('admin.dashboard') }}" class="qa-btn qa-btn-outline w-full">
+                            Admin
+                        </a>
                     @endcan
 
-                    {{-- <a href="{{ route('dashboard') }}" class="qa-btn qa-btn-outline w-full">Dashboard</a> --}}
-
-                    {{-- ✅ Sign out --}}
+                    {{-- Sign out --}}
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
                         <button type="submit" class="qa-btn qa-btn-outline w-full">
@@ -108,9 +116,18 @@
                         </button>
                     </form>
                 @else
-                    <a href="{{ route('login') }}" class="qa-btn qa-btn-outline w-full">Log In</a>
+                    {{-- Log in --}}
+                    <a href="{{ route('login') }}" class="qa-btn qa-btn-outline w-full">
+                        Log In
+                    </a>
+
+                    {{-- Register --}}
+                    <a href="{{ route('register') }}" class="qa-btn qa-btn-primary w-full">
+                        Register
+                    </a>
                 @endauth
             </div>
+
 
         </div>
     </div>

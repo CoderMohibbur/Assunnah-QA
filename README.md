@@ -16,6 +16,9 @@ password
 
 
 
+<!-- 7k question and answer import commands -->
+php artisan qa:import
+
 
 
 ✅  Fresh DB (শুধু migrate, seed না)
