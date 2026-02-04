@@ -2,11 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\AskQuestionRequest;
 use App\Models\Category;
 use App\Models\Question;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Mews\Purifier\Facades\Purifier;
+use App\Http\Requests\AskQuestionRequest;
 
 class AskQuestionController extends Controller
 {
@@ -44,23 +45,49 @@ class AskQuestionController extends Controller
         // ✅ helpful hash for duplicates
         $titleHash = hash('sha256', Str::of($safeTitle)->lower()->squish()->toString());
 
-        // ✅ create pending question
-        $q = Question::create([
-            'category_id'  => (int) $data['category_id'],
-            'slug'         => null,
-            'title'        => $safeTitle,
-            'body_html'    => $safeBody,
-            'asker_name'   => $data['name'],
-            'asker_phone'  => $data['phone'],
-            'asker_email'  => $data['email'] ?? null,
-            'status'       => 'pending',
-            'published_at' => null,
-            'view_count'   => 0,
-            'title_hash'   => $titleHash,
-        ]);
+        $q = DB::transaction(function () use ($data, $safeTitle, $safeBody, $titleHash) {
 
-        // ✅ slug set: q-{id}
-        $q->forceFill(['slug' => 'q-' . $q->id])->save();
+            // ✅ create pending question (slug initially null)
+            $q = Question::create([
+                'category_id'  => (int) $data['category_id'],
+                'slug'         => null,
+                'title'        => $safeTitle,
+                'body_html'    => $safeBody,
+                'asker_name'   => $data['name'],
+                'asker_phone'  => $data['phone'],
+                'asker_email'  => $data['email'] ?? null,
+                'status'       => 'pending',
+                'published_at' => null,
+                'view_count'   => 0,
+                'title_hash'   => $titleHash,
+            ]);
+
+            // ✅ generate unique slug like: q-7368, q-7368-2, q-7368-3 ...
+            $base = 'q-' . $q->id;
+            $slug = $base;
+            $i    = 2;
+
+            // withTrashed() দিলে soft-deleted row থাকলেও collision ধরা পড়বে
+            while (
+                Question::withTrashed()
+                ->where('slug', $slug)
+                ->where('id', '!=', $q->id)
+                ->exists()
+            ) {
+                $slug = $base . '-' . $i;
+                $i++;
+
+                // safety guard (never infinite)
+                if ($i > 200) {
+                    $slug = $base . '-' . Str::lower(Str::random(6));
+                    break;
+                }
+            }
+
+            $q->forceFill(['slug' => $slug])->save();
+
+            return $q;
+        });
 
         return redirect()->route('ask.thanks', ['id' => $q->id]);
     }

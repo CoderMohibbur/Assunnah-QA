@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Question;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PublicQuestionController extends Controller
 {
@@ -16,6 +17,19 @@ class PublicQuestionController extends Controller
         if (method_exists($u, 'isAdmin')) return (bool) $u->isAdmin();
 
         return false;
+    }
+
+    /**
+     * ✅ Sidebar categories helper (reuse)
+     */
+    private function sidebarCategories()
+    {
+        return Category::query()
+            ->whereNull('deleted_at')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'name_bn', 'slug']);
     }
 
     /**
@@ -35,10 +49,9 @@ class PublicQuestionController extends Controller
 
         $canSeeAsker = $this->canSeeAsker();
 
-        // ✅ Only select necessary columns (PII only for admin)
         $baseCols = [
             'id',
-            'published_serial',   // ✅ IMPORTANT for serial-based ordering + display
+            'published_serial',
             'category_id',
             'slug',
             'title',
@@ -63,7 +76,6 @@ class PublicQuestionController extends Controller
             ->whereNull('deleted_at')
             ->where('status', 'published');
 
-        // ✅ search
         if ($q !== '') {
             $query->where(function ($w) use ($q) {
                 $w->where('title', 'like', "%{$q}%")
@@ -71,32 +83,26 @@ class PublicQuestionController extends Controller
             });
         }
 
-        // ✅ category filter
         if ($categoryId !== '') {
             $query->where('category_id', (int) $categoryId);
         }
 
-        // ✅ answered only
         if ($answered === '1') {
             $query->whereHas('answer', function ($a) {
                 $a->whereNull('deleted_at')->where('status', 'published');
             });
         }
 
-        // ✅ sorting (serial-based)
         if ($sort === 'views') {
-            // views high -> low, then newest publish
             $query->orderByDesc('view_count')
                 ->orderByDesc('published_serial')
                 ->orderByDesc('published_at')
                 ->orderByDesc('id');
         } elseif ($sort === 'oldest') {
-            // first published -> last published
             $query->orderBy('published_serial')
                 ->orderBy('published_at')
                 ->orderBy('id');
         } else {
-            // newest published -> oldest published
             $query->orderByDesc('published_serial')
                 ->orderByDesc('published_at')
                 ->orderByDesc('id');
@@ -104,12 +110,7 @@ class PublicQuestionController extends Controller
 
         $questions = $query->paginate(12)->withQueryString();
 
-        $categories = Category::query()
-            ->whereNull('deleted_at')
-            ->where('is_active', 1)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get(['id', 'name_bn', 'slug']);
+        $categories = $this->sidebarCategories();
 
         return view('pages.questions.index', compact(
             'questions',
@@ -131,7 +132,7 @@ class PublicQuestionController extends Controller
 
         $baseCols = [
             'id',
-            'published_serial', // ✅ for display
+            'published_serial',
             'category_id',
             'slug',
             'title',
@@ -167,10 +168,12 @@ class PublicQuestionController extends Controller
             $question = $query->where('slug', $slug)->firstOrFail();
         }
 
-
         $question->increment('view_count');
 
-        return view('pages.questions.show', compact('question', 'canSeeAsker'));
+        // ✅ IMPORTANT: sidebar categories pass
+        $categories = $this->sidebarCategories();
+
+        return view('pages.questions.show', compact('question', 'canSeeAsker', 'categories'));
     }
 
     /**
@@ -188,7 +191,7 @@ class PublicQuestionController extends Controller
 
         $baseCols = [
             'id',
-            'published_serial', // ✅ for display + ordering
+            'published_serial',
             'category_id',
             'slug',
             'title',
@@ -213,13 +216,15 @@ class PublicQuestionController extends Controller
             ->whereNull('deleted_at')
             ->where('status', 'published')
             ->where('category_id', $category->id)
-            // ✅ newest serial first (category page)
             ->orderByDesc('published_serial')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->paginate(12)
             ->withQueryString();
 
-        return view('pages.categories.show', compact('category', 'questions', 'canSeeAsker'));
+        // ✅ (Recommended) category page-এও sidebar categories pass
+        $categories = $this->sidebarCategories();
+
+        return view('pages.categories.show', compact('category', 'questions', 'canSeeAsker', 'categories'));
     }
 }
