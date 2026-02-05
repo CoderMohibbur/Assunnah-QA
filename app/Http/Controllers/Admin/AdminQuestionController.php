@@ -133,4 +133,18 @@ class AdminQuestionController extends Controller
             ->route('admin.questions.index', ['status' => 'rejected'])
             ->with('success', 'Rejected.');
     }
+
+    public function destroy(Question $question)
+    {
+        if ($question->deleted_at) {
+            abort(404);
+        }
+
+        // ✅ Soft delete (questions table এ deleted_at আছে বলে ধরে নিচ্ছি)
+        $question->delete();
+
+        return redirect()
+            ->back()
+            ->with('success', 'Question deleted ✅');
+    }
 }

@@ -207,6 +207,9 @@
                                 <div class="mt-4 border-t pt-3 text-xs text-slate-500">
                                     <div class="flex items-center justify-between">
                                         <div>
+                                            প্রশ্নকারী:
+                                            <span class="font-semibold text-slate-700">{{ $askerName ?? '—' }}</span>
+                                            <span class="mx-1 text-slate-400"><br></span>
                                             উত্তর দিয়েছেন:
                                             <span class="font-semibold text-slate-700">{{ $answeredBy }}</span>
                                         </div>
@@ -292,6 +295,9 @@
                                         x-html="highlight(@js($snippet))"></div>
 
                                     <div class="mt-2 text-xs text-slate-500 flex items-center gap-2">
+                                        <span>প্রশ্নকারী: <span
+                                                class="font-semibold text-slate-700">{{ $askerName ?? '—' }}</span></span>
+                                        <br>
                                         <span>উত্তর দিয়েছেন: <span
                                                 class="font-semibold text-slate-700">{{ $answeredBy }}</span></span>
 

@@ -99,6 +99,9 @@ Route::middleware([
             Route::put('/questions/{question}', [AdminQuestionController::class, 'update'])
                 ->name('questions.update');
 
+            Route::delete('/questions/{question}', [AdminQuestionController::class, 'destroy'])
+                ->name('questions.destroy');
+
 
             Route::post('/questions/{question}/approve', [AdminQuestionController::class, 'approve'])
                 ->middleware('permission:qa.moderate_questions')

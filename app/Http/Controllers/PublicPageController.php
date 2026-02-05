@@ -98,6 +98,7 @@ class PublicPageController extends Controller
                 'slug',
                 'title',
                 'body_html',
+                'asker_name',
                 'published_at',
                 'view_count',
                 'created_at',
@@ -128,7 +129,7 @@ class PublicPageController extends Controller
 
         $cards = $canSeeAsker
             ? $cardsBase->get()
-            : $cardsBase->get(['id', 'published_serial', 'category_id', 'slug', 'title', 'body_html', 'published_at', 'view_count', 'created_at']);
+            : $cardsBase->get(['id', 'published_serial', 'category_id', 'slug', 'title', 'body_html','asker_name', 'published_at', 'view_count', 'created_at']);
 
         $latestBase = Question::query()
             ->with([
@@ -155,6 +156,7 @@ class PublicPageController extends Controller
                 'slug',
                 'title',
                 'body_html',
+                'asker_name', 
                 'published_at',
                 'view_count',
                 'created_at',

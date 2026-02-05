@@ -222,19 +222,28 @@
 
                     <div class="p-5 flex-1">
                         @php
+
                             $latestQ = $latest ?? null;
 
-                            $latestSlug = $latestQ?->slug ?: ($latestQ ? 'q-' . $latestQ->id : null);
-                            $latestUrl = $latestSlug ? route('questions.show', ['slug' => $latestSlug]) : '#';
+                            if ($latestQ) {
+                                $latestAns = $latestQ->answer;
 
-                            $latestAns = $latestQ?->answer;
-                            $latestText = (string) ($latestAns?->answer_html ?? $latestQ?->body_html);
-                            $latestExcerpt = \Illuminate\Support\Str::limit(strip_tags($latestText), 220);
+                                // ✅ RAW HTML SOURCE
+                                $rawTitle = (string) $latestQ->title;
+                                $rawBody = (string) ($latestAns?->answer_html ?? $latestQ->body_html);
 
-                            $latestDate = $bnDateLabel(
-                                $latestAns?->answered_at ??
-                                    ($latestAns?->updated_at ?? ($latestQ?->published_at ?? $latestQ?->created_at)),
-                            );
+                                // ✅ LIMIT but KEEP HTML SAFE
+                                $latestTitleHtml = Str::limit(strip_tags($rawTitle), 120);
+                                $latestDescHtml = Str::limit(strip_tags($rawBody), 140);
+
+                                $latestDate = $bnDateLabel(
+                                    $latestAns?->answered_at ??
+                                        ($latestAns?->updated_at ?? ($latestQ->published_at ?? $latestQ->created_at)),
+                                );
+
+                                $latestSlug = $latestQ->slug ?: 'q-' . $latestQ->id;
+                                $latestUrl = route('questions.show', ['slug' => $latestSlug]);
+                            }
                         @endphp
 
                         @if ($latestQ)
@@ -242,12 +251,13 @@
                                 সর্বশেষ প্রশ্ন • {{ $latestDate }}
                             </div>
 
+                            {{-- ✅ RAW HTML render, but already cleaned + limited --}}
                             <div class="text-sm font-extrabold text-slate-900 leading-snug">
-                                {!! $latestQ->title !!}
+                                {!! $latestTitleHtml !!}
                             </div>
 
                             <div class="mt-2 text-sm text-slate-600 leading-relaxed">
-                                {!! $latestExcerpt !!}
+                                {!! $latestDescHtml !!}
                             </div>
                         @else
                             <div class="text-sm text-slate-600 leading-relaxed">
@@ -266,6 +276,7 @@
                             </a>
                         </div>
                     </div>
+
                 </div>
             </div>
 
@@ -396,9 +407,13 @@
                                 <div class="mt-4 border-t pt-3 text-xs text-slate-500">
                                     <div class="flex items-center justify-between">
                                         <div>
+                                            প্রশ্নকারী:
+                                            <span class="font-semibold text-slate-700">{{ $askerName ?? '—' }}</span>
+                                            <span class="mx-1 text-slate-400"><br></span>
                                             উত্তর দিয়েছেন:
                                             <span class="font-semibold text-slate-700">{{ $answeredBy }}</span>
                                         </div>
+
 
                                         {{-- ✅ Published/Processing badge --}}
                                         @if ($isAnswerPublished)
@@ -479,6 +494,9 @@
                                         x-html="highlight(@js($snippet))"></div>
 
                                     <div class="mt-2 text-xs text-slate-500 flex items-center gap-2">
+                                        <span>প্রশ্নকারী: <span
+                                                class="font-semibold text-slate-700">{{ $askerName ?? '—' }}</span></span>
+                                                <br>
                                         <span>উত্তর দিয়েছেন: <span
                                                 class="font-semibold text-slate-700">{{ $answeredBy }}</span></span>
 

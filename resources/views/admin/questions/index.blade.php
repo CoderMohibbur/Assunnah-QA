@@ -114,10 +114,23 @@
                             </td>
 
                             <td class="py-3 pr-4">
-                                <a class="qa-btn qa-btn-outline" href="{{ route('admin.questions.show', $row) }}">
-                                    Review →
-                                </a>
+                                <div class="flex items-center gap-2">
+                                    <a class="qa-btn qa-btn-outline" href="{{ route('admin.questions.show', $row) }}">
+                                        Review →
+                                    </a>
+
+                                    <form method="POST" action="{{ route('admin.questions.destroy', $row) }}"
+                                        onsubmit="return confirm('আপনি কি নিশ্চিত? এই প্রশ্নটি ডিলিট হবে (soft delete)।');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="qa-btn qa-btn-outline"
+                                            style="border-color:#fecaca;color:#b91c1c;">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
+
                         </tr>
                     @empty
                         <tr>
