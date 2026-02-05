@@ -20,9 +20,15 @@
         </p>
 
         @php
-            $slug = $question->slug ?: 'q-' . $question->id;
-            $url = url('/questions/' . $slug);
+            $slug = trim((string) ($question->slug ?? ''));
+
+            if ($slug === '' || (preg_match('/^q-(\d+)$/', $slug, $m) && (int) $m[1] !== (int) $question->id)) {
+                $slug = 'q-' . $question->id;
+            }
+
+            $url = route('questions.show', ['slug' => $slug]);
         @endphp
+
 
         <p style="margin:0 0 18px;">
             <a href="{{ $url }}"

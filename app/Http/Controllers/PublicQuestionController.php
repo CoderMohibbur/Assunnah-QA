@@ -57,7 +57,7 @@ class PublicQuestionController extends Controller
             'title',
             'body_html',
             'status',
-            'asker_name', 
+            'asker_name',
             'published_at',
             'view_count',
             'created_at',
@@ -139,7 +139,7 @@ class PublicQuestionController extends Controller
             'title',
             'body_html',
             'status',
-            'asker_name', 
+            'asker_name',
             'published_at',
             'view_count',
             'created_at',
@@ -159,24 +159,34 @@ class PublicQuestionController extends Controller
             ->whereNull('deleted_at')
             ->where('status', 'published');
 
+        $question = null;
+
         if (preg_match('/^q-(\d+)$/', $slug, $m)) {
             $num = (int) $m[1];
 
-            $question = $query->where(function ($qq) use ($slug, $num) {
-                $qq->where('slug', $slug)
-                    ->orWhere('published_serial', $num);
-            })->firstOrFail();
+            // ✅ 1) first try exact slug match (important!)
+            $question = (clone $query)->where('slug', $slug)->first();
+
+            // ✅ 2) fallback: treat as ID
+            if (!$question) {
+                $question = (clone $query)->whereKey($num)->first();
+            }
+
+            // ✅ 3) fallback: treat as published_serial (only if ID not found in published)
+            if (!$question) {
+                $question = (clone $query)->where('published_serial', $num)->firstOrFail();
+            }
         } else {
-            $question = $query->where('slug', $slug)->firstOrFail();
+            $question = (clone $query)->where('slug', $slug)->firstOrFail();
         }
 
         $question->increment('view_count');
 
-        // ✅ IMPORTANT: sidebar categories pass
         $categories = $this->sidebarCategories();
 
         return view('pages.questions.show', compact('question', 'canSeeAsker', 'categories'));
     }
+
 
     /**
      * ✅ Category-wise published questions

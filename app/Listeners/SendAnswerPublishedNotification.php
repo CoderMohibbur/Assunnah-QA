@@ -12,6 +12,29 @@ class SendAnswerPublishedNotification
 {
     public function __construct(protected SmsService $sms) {}
 
+
+    private function safePublicSlug($q): string
+    {
+        $slug = trim((string)($q->slug ?? ''));
+
+        // slug empty => id fallback
+        if ($slug === '') {
+            return 'q-' . $q->id;
+        }
+
+        // slug is numeric like q-123 কিন্তু এটা যদি id না হয়, তাহলে id use করবো
+        if (preg_match('/^q-(\d+)$/', $slug, $m)) {
+            $n = (int)$m[1];
+            if ($n !== (int)$q->id) {
+                return 'q-' . $q->id;
+            }
+        }
+
+        return $slug;
+    }
+
+
+
     public function handle(AnswerPublished $event): void
     {
         // ✅ Load question safely
@@ -126,8 +149,8 @@ class SendAnswerPublishedNotification
     // }
     private function buildSmsMessage($q, $answer): string
     {
-        $slug = $q->slug ?: ('q-' . $q->id);
-        $url  = url('/questions/' . $slug);
+        $slug = $this->safePublicSlug($q);
+        $url  = route('questions.show', ['slug' => $slug]);
 
         return "Assalamu Alaikum, your question to As-Sunnah Trust has been answered. View it here: {$url} JazakAllahu Khair.";
     }
