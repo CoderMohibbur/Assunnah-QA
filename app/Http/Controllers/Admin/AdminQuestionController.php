@@ -60,22 +60,33 @@ class AdminQuestionController extends Controller
 
         $data = $request->validate([
             'title'       => ['required', 'string', 'max:255'],
-            'body_html'   => ['nullable', 'string', 'max:200000'], // large html
+            'body_html'   => ['nullable', 'string', 'max:200000'],
             'category_id' => [
                 'required',
                 'integer',
                 Rule::exists('categories', 'id')->whereNull('deleted_at'),
             ],
+
+            // ✅ NEW: Asker fields editable by admin
+            'asker_name'  => ['nullable', 'string', 'max:120'],
+            'asker_phone' => ['nullable', 'string', 'max:30'],
+            'asker_email' => ['nullable', 'email', 'max:120'],
         ]);
 
         $question->forceFill([
             'title'       => trim($data['title']),
             'body_html'   => $data['body_html'] ?? null,
             'category_id' => (int) $data['category_id'],
+
+            // ✅ save asker info (trim + null if empty)
+            'asker_name'  => isset($data['asker_name']) ? (trim($data['asker_name']) ?: null) : $question->asker_name,
+            'asker_phone' => isset($data['asker_phone']) ? (trim($data['asker_phone']) ?: null) : $question->asker_phone,
+            'asker_email' => isset($data['asker_email']) ? (trim($data['asker_email']) ?: null) : $question->asker_email,
         ])->save();
 
         return back()->with('success', 'Question updated ✅');
     }
+
 
     public function show(Question $question)
     {
