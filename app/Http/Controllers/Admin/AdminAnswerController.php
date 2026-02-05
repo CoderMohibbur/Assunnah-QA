@@ -86,42 +86,45 @@ class AdminAnswerController extends Controller
      * (used in publish process with retries)
      */
 
-    private function allocatePublishedSerial(Question $q, int $maxAttempts = 5): int
+    private function allocatePublishedSerial(Question $q, int $maxAttempts = 50): int
     {
         if (!empty($q->published_serial)) {
             return (int) $q->published_serial;
         }
 
+        // start from current max+1
+        $candidate = (Question::whereNotNull('published_serial')->lockForUpdate()->max('published_serial') ?? 0) + 1;
+
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-
-            // next serial guess
-            $next = (Question::whereNotNull('published_serial')->max('published_serial') ?? 0) + 1;
-
             try {
-                // write immediately so UNIQUE constraint protects us
-                $q->forceFill(['published_serial' => $next])->save();
-                return $next;
+                // persist immediately so UNIQUE constraint protects us
+                $q->forceFill(['published_serial' => $candidate])->save();
+                return $candidate;
             } catch (QueryException $e) {
+
                 $sqlState = (string) ($e->errorInfo[0] ?? '');
                 $errNo    = (int)    ($e->errorInfo[1] ?? 0);
 
-                // MySQL duplicate key
+                // MySQL duplicate key: SQLSTATE 23000 / error 1062
                 if ($sqlState === '23000' && $errNo === 1062) {
                     $q->refresh();
+
+                    // maybe set by another request meanwhile
                     if (!empty($q->published_serial)) {
                         return (int) $q->published_serial;
                     }
-                    usleep(40_000 * $attempt); // 40ms, 80ms, 120ms...
+
+                    $candidate++;       // try next number
+                    usleep(20_000);     // 20ms backoff
                     continue;
                 }
 
-                throw $e;
+                throw $e; // other DB errors
             }
         }
 
         throw new \RuntimeException('Unique published_serial allocate failed after retries.');
     }
-
 
 
     /**
@@ -136,6 +139,11 @@ class AdminAnswerController extends Controller
             return back()->withErrors([
                 'answer_html' => 'Rejected প্রশ্ন publish করা যাবে না। আগে approve/restore করুন।',
             ]);
+        }
+
+        // ✅ NEW: already published guard (double click / re-submit safe)
+        if (($question->status ?? '') === 'published') {
+            return back()->with('success', 'Already published ✅');
         }
 
         // ✅ Answer required, Question fields optional (if sent, we update)
@@ -163,14 +171,19 @@ class AdminAnswerController extends Controller
             // ✅ Lock question row (race-condition safe)
             $q = Question::whereKey($question->id)->lockForUpdate()->firstOrFail();
 
+            // ✅ If it became published after user opened the page (race safe)
+            if (($q->status ?? '') === 'published') {
+                return;
+            }
+
             // ✅ Update question edits FIRST (title/body/category) if provided
             if (!empty($qPayload)) {
                 $q->forceFill($qPayload)->save();
             }
 
-            // ✅ Allocate published serial only once (SAFE: retry on UNIQUE conflict)
+            // ✅ Allocate published serial only once (SAFE: increments candidate on conflict)
             if (empty($q->published_serial)) {
-                $this->allocatePublishedSerial($q, 5); // sets & saves published_serial
+                $this->allocatePublishedSerial($q); // sets & saves published_serial
             }
 
             // ✅ Upsert answer as published
@@ -201,6 +214,7 @@ class AdminAnswerController extends Controller
 
         // ✅ Fire event after DB commit (stable)
         DB::afterCommit(function () use ($answerId) {
+            if (!$answerId) return; // ✅ important if already published inside tx
             $answer = Answer::with(['question'])->find($answerId);
             if ($answer) {
                 event(new AnswerPublished($answer));
@@ -211,6 +225,8 @@ class AdminAnswerController extends Controller
             ->route('admin.questions.index', ['status' => 'published'])
             ->with('success', 'Answer published ✅ Notification queued.');
     }
+
+
 
 
     /**
