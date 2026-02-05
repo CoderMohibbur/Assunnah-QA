@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Mews\Purifier\Facades\Purifier;
+use Illuminate\Database\QueryException;
 
 class AdminAnswerController extends Controller
 {
@@ -81,6 +82,49 @@ class AdminAnswerController extends Controller
     }
 
     /**
+     * Allocate unique published_serial for a Question
+     * (used in publish process with retries)
+     */
+
+    private function allocatePublishedSerial(Question $q, int $maxAttempts = 5): int
+    {
+        if (!empty($q->published_serial)) {
+            return (int) $q->published_serial;
+        }
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+
+            // next serial guess
+            $next = (Question::whereNotNull('published_serial')->max('published_serial') ?? 0) + 1;
+
+            try {
+                // write immediately so UNIQUE constraint protects us
+                $q->forceFill(['published_serial' => $next])->save();
+                return $next;
+            } catch (QueryException $e) {
+                $sqlState = (string) ($e->errorInfo[0] ?? '');
+                $errNo    = (int)    ($e->errorInfo[1] ?? 0);
+
+                // MySQL duplicate key
+                if ($sqlState === '23000' && $errNo === 1062) {
+                    $q->refresh();
+                    if (!empty($q->published_serial)) {
+                        return (int) $q->published_serial;
+                    }
+                    usleep(40_000 * $attempt); // 40ms, 80ms, 120ms...
+                    continue;
+                }
+
+                throw $e;
+            }
+        }
+
+        throw new \RuntimeException('Unique published_serial allocate failed after retries.');
+    }
+
+
+
+    /**
      * Publish Answer
      * Route: POST /admin/questions/{question}/answer/publish
      */
@@ -124,13 +168,9 @@ class AdminAnswerController extends Controller
                 $q->forceFill($qPayload)->save();
             }
 
-            // ✅ Assign publish serial only once (publish order)
+            // ✅ Allocate published serial only once (SAFE: retry on UNIQUE conflict)
             if (empty($q->published_serial)) {
-                $nextSerial = (Question::whereNotNull('published_serial')
-                    ->lockForUpdate()
-                    ->max('published_serial') ?? 0) + 1;
-
-                $q->published_serial = $nextSerial;
+                $this->allocatePublishedSerial($q, 5); // sets & saves published_serial
             }
 
             // ✅ Upsert answer as published
@@ -153,9 +193,9 @@ class AdminAnswerController extends Controller
 
             // ✅ Publish question (keep title/body/category edits already saved)
             $q->forceFill([
-                'status'           => 'published',
-                'published_at'     => now(),
-                'published_serial' => $q->published_serial,
+                'status'       => 'published',
+                'published_at' => now(),
+                // published_serial already saved above
             ])->save();
         });
 
@@ -171,6 +211,7 @@ class AdminAnswerController extends Controller
             ->route('admin.questions.index', ['status' => 'published'])
             ->with('success', 'Answer published ✅ Notification queued.');
     }
+
 
     /**
      * Build Question update payload from validated data
