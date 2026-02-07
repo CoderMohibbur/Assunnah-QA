@@ -137,11 +137,11 @@
                                                 </div>
 
                                                 <h3 class="text-xl md:text-2xl font-bold leading-snug text-center">
-                                                    {{ $f->title }}
+                                                    {!! $f->title !!}
                                                 </h3>
 
                                                 <p class="mt-4 text-white/90 text-center max-w-2xl mx-auto">
-                                                    {{ $excerpt }}
+                                                    {!! $excerpt !!}
                                                 </p>
 
                                                 <div class="mt-5 text-center text-xs text-white/80">{{ $date }}
