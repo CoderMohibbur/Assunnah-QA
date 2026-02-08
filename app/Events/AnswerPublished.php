@@ -10,5 +10,9 @@ class AnswerPublished
 {
     use Dispatchable, SerializesModels;
 
-    public function __construct(public Answer $answer) {}
+    public function __construct(
+        public Answer $answer,
+        public bool $notifySms = true,
+        public bool $notifyEmail = true,
+    ) {}
 }

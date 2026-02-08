@@ -141,11 +141,6 @@ class AdminAnswerController extends Controller
             ]);
         }
 
-        // ✅ NEW: already published guard (double click / re-submit safe)
-        if (($question->status ?? '') === 'published') {
-            return back()->with('success', 'Already published ✅');
-        }
-
         // ✅ Answer required, Question fields optional (if sent, we update)
         $data = $request->validate([
             'answer_html'  => ['required', 'string', 'min:10'],
@@ -159,72 +154,113 @@ class AdminAnswerController extends Controller
                 'integer',
                 Rule::exists('categories', 'id')->whereNull('deleted_at'),
             ],
+
+            // notify toggles
+            'notify_sms'   => ['sometimes', 'boolean'],
+            'notify_email' => ['sometimes', 'boolean'],
         ]);
 
         $cleanAnswer = $this->sanitizeHtml((string) $data['answer_html']);
         $qPayload    = $this->questionPayloadFromValidated($data);
 
-        $answerId = null;
+        $notifySms   = $request->boolean('notify_sms', true);
+        $notifyEmail = $request->boolean('notify_email', true);
 
-        DB::transaction(function () use ($question, $cleanAnswer, $qPayload, &$answerId) {
+        $answerId            = null;
+        $wasPublishedBefore  = false;
+        $didSave             = false;
 
-            // ✅ Lock question row (race-condition safe)
+        DB::transaction(function () use (
+            $question,
+            $cleanAnswer,
+            $qPayload,
+            &$answerId,
+            &$wasPublishedBefore,
+            &$didSave
+        ) {
+            // ✅ Lock question row (race-safe)
             $q = Question::whereKey($question->id)->lockForUpdate()->firstOrFail();
 
-            // ✅ If it became published after user opened the page (race safe)
-            if (($q->status ?? '') === 'published') {
-                return;
-            }
+            $wasPublishedBefore = (($q->status ?? '') === 'published');
 
             // ✅ Update question edits FIRST (title/body/category) if provided
             if (!empty($qPayload)) {
                 $q->forceFill($qPayload)->save();
             }
 
-            // ✅ Allocate published serial only once (SAFE: increments candidate on conflict)
+            // ✅ Allocate published serial only once
             if (empty($q->published_serial)) {
-                $this->allocatePublishedSerial($q); // sets & saves published_serial
+                $this->allocatePublishedSerial($q);
             }
 
-            // ✅ Upsert answer as published
-            $answer = Answer::updateOrCreate(
-                ['question_id' => $q->id],
-                [
-                    'answered_by' => auth()->id(),
-                    'answer_html' => $cleanAnswer,
+            // ✅ Update existing answer OR create new (and keep answered_at if already set)
+            $answer = Answer::where('question_id', $q->id)->lockForUpdate()->first();
+
+            if ($answer) {
+                $answer->forceFill([
+                    'answered_by'    => auth()->id(),
+                    'answer_html'    => $cleanAnswer,
 
                     'answer_html_bn' => $cleanAnswer,
                     'answer_html_en' => null,
                     'answer_html_ar' => null,
 
-                    'status'      => 'published',
-                    'answered_at' => now(),
-                ]
-            );
+                    'status'         => 'published',
+                ]);
+
+                // keep old answered_at if already exists
+                if (empty($answer->answered_at)) {
+                    $answer->answered_at = now();
+                }
+
+                $answer->save();
+            } else {
+                $answer = Answer::create([
+                    'question_id'    => $q->id,
+                    'answered_by'    => auth()->id(),
+                    'answer_html'    => $cleanAnswer,
+
+                    'answer_html_bn' => $cleanAnswer,
+                    'answer_html_en' => null,
+                    'answer_html_ar' => null,
+
+                    'status'         => 'published',
+                    'answered_at'    => now(),
+                ]);
+            }
 
             $answerId = $answer->id;
 
-            // ✅ Publish question (keep title/body/category edits already saved)
-            $q->forceFill([
-                'status'       => 'published',
-                'published_at' => now(),
-                // published_serial already saved above
-            ])->save();
+            // ✅ Only set published_at when it was not published before
+            if (!$wasPublishedBefore) {
+                $q->forceFill([
+                    'status'       => 'published',
+                    'published_at' => now(),
+                ])->save();
+            }
+
+            $didSave = true;
         });
 
-        // ✅ Fire event after DB commit (stable)
-        DB::afterCommit(function () use ($answerId) {
-            if (!$answerId) return; // ✅ important if already published inside tx
+        // ✅ Fire event after DB commit (always dispatch; listener will decide SMS/Email)
+        DB::afterCommit(function () use ($answerId, $didSave, $notifySms, $notifyEmail) {
+            if (!$didSave || !$answerId) return;
+
             $answer = Answer::with(['question'])->find($answerId);
             if ($answer) {
-                event(new AnswerPublished($answer));
+                event(new AnswerPublished($answer, $notifySms, $notifyEmail));
             }
         });
 
+        $msg = $wasPublishedBefore
+            ? 'Answer updated ✅'
+            : 'Answer published ✅';
+
         return redirect()
             ->route('admin.questions.index', ['status' => 'published'])
-            ->with('success', 'Answer published ✅ Notification queued.');
+            ->with('success', $msg);
     }
+
 
 
 

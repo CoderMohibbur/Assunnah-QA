@@ -337,6 +337,30 @@
                     <textarea id="answer_html" name="answer_html" class="qa-input w-full min-h-[260px]"
                         placeholder="এখানে উত্তর লিখুন...">{{ old('answer_html', $question->answer?->answer_html ?? '') }}</textarea>
 
+
+
+                    {{-- ✅ Notification toggles --}}
+                    <div class="mt-3 flex flex-wrap items-center gap-4 text-sm">
+                        <label class="inline-flex items-center gap-2">
+                            {{-- hidden fallback so unchecked => 0 যাবে --}}
+                            <input type="hidden" name="notify_sms" value="0">
+                            <input type="checkbox" name="notify_sms" value="1" class="h-4 w-4"
+                                @checked(old('notify_sms', 1))>
+                            <span class="text-slate-700">Send SMS</span>
+                        </label>
+
+                        <label class="inline-flex items-center gap-2">
+                            <input type="hidden" name="notify_email" value="0">
+                            <input type="checkbox" name="notify_email" value="1" class="h-4 w-4"
+                                @checked(old('notify_email', 1))>
+                            <span class="text-slate-700">Send Email</span>
+                        </label>
+
+                        <span class="text-xs text-slate-500">
+                            (দুটোই unchecked করলে কোনো notification যাবে না)
+                        </span>
+                    </div>
+
                     <div class="mt-4 flex flex-col sm:flex-row gap-2">
                         <button type="submit" class="qa-btn qa-btn-outline w-full sm:w-auto">
                             Save Draft
