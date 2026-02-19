@@ -52,6 +52,10 @@ Route::get('/about', [PublicPageController::class, 'about'])->name('about');
 Route::get('/ask', [AskQuestionController::class, 'create'])
     ->name('ask');
 
+Route::post('/ask/upload', [AskQuestionController::class, 'upload'])
+    ->middleware('throttle:20,1')
+    ->name('ask.upload');
+
 Route::post('/ask', [AskQuestionController::class, 'store'])
     ->middleware('throttle:ask-question')
     ->name('ask.store');

@@ -243,8 +243,8 @@
 
                 {{-- Title --}}
                 <div>
-                    <label class="text-sm font-bold text-slate-800" @keyup.debounce.700ms="fetchSuggestions()">প্রশ্নের শিরোনাম <span
-                            class="text-red-600">*</span></label>
+                    <label class="text-sm font-bold text-slate-800" @keyup.debounce.700ms="fetchSuggestions()">প্রশ্নের
+                        শিরোনাম <span class="text-red-600">*</span></label>
 
                     <div class="mt-2 flex gap-2 items-center">
                         <input type="text" name="title" required class="qa-input mt-2" x-model="title"
@@ -264,8 +264,9 @@
                 <div>
                     <label class="text-sm font-bold text-slate-800">প্রশ্ন বিস্তারিত <span
                             class="text-red-600">*</span></label>
-                    <textarea name="body" required rows="7" class="qa-input mt-2"
+                    <textarea id="ask_body" name="body" required rows="10" class="qa-input mt-2"
                         placeholder="আপনার প্রশ্ন বিস্তারিত লিখুন...">{{ old('body') }}</textarea>
+
                     @error('body')
                         <div class="mt-1 text-xs text-red-600">{{ $message }}</div>
                     @enderror
@@ -512,3 +513,84 @@
         }
     </script>
 @endsection
+
+@push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/jodit@4.1.16/es2021/jodit.min.js"></script>
+    <script>
+        (function() {
+            const el = document.getElementById('ask_body');
+            if (!el) return;
+            if (el.dataset.joditInited === '1') return;
+            el.dataset.joditInited = '1';
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+            const editor = new Jodit(el, {
+                height: 440,
+                toolbarAdaptive: false,
+                toolbarSticky: false,
+                showCharsCounter: true,
+                showWordsCounter: true,
+                showXPathInStatusbar: false,
+
+                buttons: [
+                    'source', '|',
+                    'bold', 'italic', 'underline', 'strikethrough', 'eraser', '|',
+                    'superscript', 'subscript', '|',
+                    'ul', 'ol', 'outdent', 'indent', '|',
+                    'font', 'fontsize', 'brush', 'paragraph', '|',
+                    'align', '|',
+                    'image', 'file', 'link', '|',
+                    'table', 'hr', 'symbol', '|',
+                    'copyformat', 'selectall', '|',
+                    'undo', 'redo', '|',
+                    'fullsize', 'preview', 'print'
+                ],
+
+                uploader: {
+                    url: @js(route('ask.upload')),
+                    method: 'POST',
+                    format: 'json',
+                    filesVariableName: 'files', // backend single/array দুইটাই handle করছে
+                    headers: {
+                        'X-CSRF-TOKEN': csrf
+                    },
+
+                    isSuccess: function(resp) {
+                        return resp && (resp.success === true || resp.success === 1);
+                    },
+
+                    process: function(resp) {
+                        // accept resp.files (urls) OR resp.files_info (objects) OR resp.data.files
+                        let urls = [];
+
+                        if (Array.isArray(resp?.files) && resp.files.length) {
+                            urls = resp.files.filter(u => typeof u === 'string');
+                        } else if (Array.isArray(resp?.data?.files) && resp.data.files.length) {
+                            urls = resp.data.files.filter(u => typeof u === 'string');
+                        } else if (Array.isArray(resp?.files_info) && resp.files_info.length) {
+                            urls = resp.files_info.map(x => x?.url).filter(Boolean);
+                        }
+
+                        return {
+                            files: urls
+                        };
+                    }
+                },
+
+                cleanHTML: {
+                    removeEmptyElements: true,
+                }
+            });
+
+            const form = el.closest('form');
+            if (form) {
+                form.addEventListener('submit', function() {
+                    try {
+                        el.value = editor.value || '';
+                    } catch (e) {}
+                }, true);
+            }
+        })();
+    </script>
+@endpush

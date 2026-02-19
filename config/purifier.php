@@ -30,16 +30,35 @@ return [
             'HTML.TargetBlank' => true,
             'Core.EscapeNonASCIICharacters' => false,
 
-
-            // ✅ Allowed tags/attrs (safe allowlist)
+            // ✅ Allow needed tags/attrs for Jodit (safe)
             'HTML.Allowed' =>
-            'p,br,b,strong,i,em,ul,ol,li,blockquote,' .
-                'h2,h3,h4,code,pre,' .
-                'a[href|title|target|rel]',
+            'p[style],br,div[style],span[style],' .
+                'b,strong,i,em,u,s,strike,del,ins,mark,' .
+                'sup,sub,' .
+                'ul,ol,li,blockquote,' .
+                'h1,h2,h3,h4,h5,h6,' .
+                'code,pre,hr,' .
+                'a[href|title|target|rel|download],' .
+                'img[src|alt|title|width|height],' .
+                'table[style|border|cellpadding|cellspacing],thead,tbody,tfoot,' .
+                'tr[style],th[style|colspan|rowspan],td[style|colspan|rowspan]',
 
-            // ✅ Block dangerous stuff
-            'HTML.ForbiddenElements' => 'script,style,iframe,object,embed,form,input,button,textarea,video,audio',
+            // ✅ Keep it safe
+            'HTML.ForbiddenElements' => 'script,style,iframe,object,embed,form,input,button,textarea',
             'Attr.EnableID' => false,
+
+            // ✅ Allow only safe style properties (align/color etc)
+            'CSS.AllowedProperties' => [
+                'text-align',
+                'color',
+                'background-color',
+                'font-weight',
+                'font-style',
+                'text-decoration',
+                'font-size',
+                'font-family',
+                'padding-left',
+            ],
 
             // ✅ URL schemes allowed
             'URI.AllowedSchemes' => [
@@ -49,13 +68,12 @@ return [
                 'tel' => true,
             ],
 
-            // ✅ Target/rel safety
             'Attr.AllowedFrameTargets' => ['_blank'],
             'HTML.Nofollow' => true,
 
-            // Optional cleanup
             'AutoFormat.RemoveEmpty' => true,
         ],
+
 
         'default' => [
             'Core.EscapeNonASCIICharacters' => false,

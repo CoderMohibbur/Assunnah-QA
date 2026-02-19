@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\AskQuestionRequest;
 use App\Models\Category;
 use App\Models\Question;
-use Illuminate\Support\Str;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Mews\Purifier\Facades\Purifier;
-use App\Http\Requests\AskQuestionRequest;
 
 class AskQuestionController extends Controller
 {
@@ -25,6 +29,56 @@ class AskQuestionController extends Controller
             ->get(['id', 'name_bn', 'slug']);
 
         return view('pages.ask.index', compact('categories'));
+    }
+
+
+    public function upload(Request $request): JsonResponse
+    {
+        // Jodit কখনো files[], কখনো files পাঠাতে পারে
+        $files = $request->file('files');
+
+        if (!$files) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No file uploaded.',
+            ], 422);
+        }
+
+        $files = is_array($files) ? $files : [$files];
+
+        // Limit
+        if (count($files) > 3) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Max 3 files allowed.',
+            ], 422);
+        }
+
+        // Manual validate for array of UploadedFile
+        $v = Validator::make(['files' => $files], [
+            'files'   => ['required', 'array', 'min:1', 'max:3'],
+            'files.*' => ['file', 'max:5120', 'mimes:jpg,jpeg,png,webp,gif,pdf,doc,docx'],
+        ]);
+
+        if ($v->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $v->errors()->first(),
+                'errors'  => $v->errors(),
+            ], 422);
+        }
+
+        $urls = [];
+
+        foreach ($files as $file) {
+            $path = $file->store('ask_uploads', 'public');
+            $urls[] = Storage::disk('public')->url($path);
+        }
+
+        return response()->json([
+            'success' => true,
+            'files'   => $urls, // ✅ Jodit friendly (string urls)
+        ]);
     }
 
     /**

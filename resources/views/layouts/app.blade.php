@@ -18,6 +18,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap"
         rel="stylesheet">
 
+    {{-- Jodit Editor --}}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jodit@4.1.16/es2021/jodit.min.css">
+
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -111,8 +114,8 @@
                     <div class="font-extrabold text-slate-900">${escapeHtml(title)}</div>
                     <div class="mt-1 text-sm text-slate-600 leading-relaxed">${escapeHtml(message)}</div>
                     ${link ? `<a href="${link}" class="mt-2 inline-flex text-sm font-bold text-cyan-700 hover:underline">
-                            প্রশ্নটি দেখুন →
-                        </a>` : ''}
+                                    প্রশ্নটি দেখুন →
+                                </a>` : ''}
                 </div>
                 <button type="button" class="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold hover:bg-slate-50">
                     ✕
@@ -147,6 +150,7 @@
     @include('partials.footer')
 
     @stack('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/jodit@4.1.16/es2021/jodit.min.js"></script>
 
 
 </body>
