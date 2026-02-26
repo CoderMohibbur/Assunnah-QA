@@ -86,7 +86,7 @@ class PublicPageController extends Controller
             ->orderByDesc('view_count')
             ->orderByDesc('published_at')
             ->orderByDesc('id')
-            ->limit(3);
+            ->limit(8);
 
         // ✅ Admin হলে column limit দেবেন না (যাতে asker columns যাই থাকুক আসতে পারে)
         $featured = $canSeeAsker
